@@ -1,0 +1,78 @@
+// server.js (deploy on Vercel, Heroku, or another host)
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+const parties = {};
+
+io.on('connection', (socket) => {
+    console.log('Player connected:', socket.id);
+
+    socket.on('createParty', () => {
+        const partyId = Math.random().toString(36).substring(2, 10);
+        parties[partyId] = { players: {} };
+        socket.join(partyId);
+        socket.emit('partyCreated', partyId);
+    });
+
+    socket.on('joinParty', (partyId) => {
+        if (parties[partyId]) {
+            socket.join(partyId);
+            socket.emit('partyJoined', { success: true, partyId });
+        } else {
+            socket.emit('partyJoined', { success: false });
+        }
+    });
+
+    socket.on('join', (data) => {
+        if (parties[data.partyId]) {
+            parties[data.partyId].players[socket.id] = data;
+            io.to(data.partyId).emit('players', parties[data.partyId].players);
+        }
+    });
+
+    socket.on('update', (data) => {
+        if (parties[data.partyId]) {
+            parties[data.partyId].players[socket.id] = data;
+            io.to(data.partyId).emit('players', parties[data.partyId].players);
+        }
+    });
+
+    socket.on('bullet', (data) => {
+        io.to(data.partyId).emit('bullet', data);
+    });
+
+    socket.on('hit', (data) => {
+        if (parties[data.partyId]) {
+            if (parties[data.partyId].players[data.shooterId]) {
+                parties[data.partyId].players[data.shooterId].score += 1;
+            }
+            if (parties[data.partyId].players[data.targetId]) {
+                parties[data.partyId].players[data.targetId].score = Math.max(0, parties[data.partyId].players[data.targetId].score - 1);
+            }
+            io.to(data.partyId).emit('scoreUpdate', { playerId: data.shooterId, score: parties[data.partyId].players[data.shooterId].score });
+            io.to(data.partyId).emit('scoreUpdate', { playerId: data.targetId, score: parties[data.partyId].players[data.targetId].score });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        Object.keys(parties).forEach(partyId => {
+            if (parties[partyId].players[socket.id]) {
+                delete parties[partyId].players[socket.id];
+                io.to(partyId).emit('playerDisconnected', socket.id);
+            }
+        });
+        console.log('Player disconnected:', socket.id);
+    });
+});
+
+server.listen(process.env.PORT || 3000, () => {
+    console.log('Server running');
+});
+
+
+

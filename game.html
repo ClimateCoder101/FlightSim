@@ -1,0 +1,355 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic Flight Simulator</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <p>Controls:</p>
+        <p>W: Move Forward | S: Move Backward</p>
+        <p>A: Move Left | D: Move Right</p>
+        <p>Up: Move Up | Down: Move Down</p>
+        <p>Space: Shoot</p>
+        <p><a href="/index.html" style="color: lightblue; text-decoration: underline;">Back to Homepage</a></p>
+    </div>
+    <div id="hud">
+        <p>Score: <span id="score">0</span></p>
+        <p>Speed: <span id="speed">0</span> m/s</p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        // Skybox
+        const skyboxGeometry = new THREE.SphereGeometry(500, 32, 32);
+        const skyboxMaterial = new THREE.MeshBasicMaterial({
+            map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/skyboxsun25degtest.png'),
+            side: THREE.BackSide
+        });
+        const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+        scene.add(skybox);
+
+        // Terrain with Perlin noise
+        const terrainSize = 1000;
+        const terrainSegments = 100;
+        const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
+        const noise = new SimplexNoise();
+        const vertices = terrainGeometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            const x = vertices[i];
+            const z = vertices[i + 1];
+            const height = noise.noise2D(x / 100, z / 100) * 20;
+            vertices[i + 2] = height;
+        }
+        terrainGeometry.computeVertexNormals();
+        const terrainMaterial = new THREE.MeshStandardMaterial({
+            color: 0x228B22,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        terrain.rotation.x = -Math.PI / 2;
+        terrain.position.y = -50;
+        scene.add(terrain);
+
+        // Player airplane
+        const airplaneGroup = new THREE.Group();
+        const fuselageGeometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 32);
+        const fuselageMaterial = new THREE.MeshPhongMaterial({ color: 0x808080, shininess: 100, specular: 0x555555 });
+        const fuselage = new THREE.Mesh(fuselageGeometry, fuselageMaterial);
+        fuselage.rotation.z = Math.PI / 2;
+        airplaneGroup.add(fuselage);
+        const wingGeometry = new THREE.BoxGeometry(8, 0.2, 1.5);
+        const wingMaterial = new THREE.MeshPhongMaterial({ color: 0xC0C0C0, shininess: 50 });
+        const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        leftWing.position.set(-2, 0, 0);
+        airplaneGroup.add(leftWing);
+        const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        rightWing.position.set(2, 0, 0);
+        airplaneGroup.add(rightWing);
+        const tailGeometry = new THREE.BoxGeometry(2, 0.1, 1);
+        const tailMaterial = new THREE.MeshPhongMaterial({ color: 0xC0C0C0, shininess: 50 });
+        const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+        tail.position.set(0, 0, 2.5);
+        airplaneGroup.add(tail);
+        const vStabGeometry = new THREE.BoxGeometry(0.1, 1, 1);
+        const vStab = new THREE.Mesh(vStabGeometry, tailMaterial);
+        vStab.position.set(0, 0.5, 2.5);
+        airplaneGroup.add(vStab);
+        scene.add(airplaneGroup);
+
+        // Enemy airplane
+        const enemyGroup = new THREE.Group();
+        const enemyFuselage = new THREE.Mesh(fuselageGeometry, new THREE.MeshPhongMaterial({ color: 0xff0000, shininess: 100 }));
+        enemyFuselage.rotation.z = Math.PI / 2;
+        enemyGroup.add(enemyFuselage);
+        const enemyLeftWing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 1), new THREE.MeshPhongMaterial({ color: 0x800000 }));
+        enemyLeftWing.position.set(-1.5, 0, 0);
+        enemyGroup.add(enemyLeftWing);
+        const enemyRightWing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 1), new THREE.MeshPhongMaterial({ color: 0x800000 }));
+        enemyRightWing.position.set(1.5, 0, 0);
+        enemyGroup.add(enemyRightWing);
+        const enemyTail = new THREE.Mesh(tailGeometry, new THREE.MeshPhongMaterial({ color: 0x800000 }));
+        enemyTail.position.set(0, 0, 2.5);
+        enemyGroup.add(enemyTail);
+        const enemyVStab = new THREE.Mesh(vStabGeometry, new THREE.MeshPhongMaterial({ color: 0x800000 }));
+        enemyVStab.position.set(0, 0.5, 2.5);
+        enemyGroup.add(enemyVStab);
+        enemyGroup.position.set(20, 10, -20);
+        scene.add(enemyGroup);
+
+        // Camera setup
+        camera.position.set(0, 5, 15);
+        scene.add(camera);
+
+        // Flight dynamics
+        let velocity = new THREE.Vector3(0, 0, 0);
+        let enemyVelocity = new THREE.Vector3(0, 0, -0.3); // Increased for more active movement
+        const acceleration = 0.2; // Adjusted for responsiveness
+        const maxSpeed = 1.5; // Scaled to represent 150 m/s (1.5 * 100 = 150 on HUD)
+        const gravity = -0.002;
+        let score = 0;
+
+        // Bullets (player and enemy)
+        const bullets = [];
+        const enemyBullets = [];
+        const bulletSpeed = 2;
+        const bulletLifetime = 2;
+        let lastEnemyShot = 0;
+
+        // AI waypoints
+        const waypoints = [
+            new THREE.Vector3(20, 10, -20),
+            new THREE.Vector3(-20, 15, -40),
+            new THREE.Vector3(0, 20, 20),
+            new THREE.Vector3(40, 10, 0)
+        ];
+        let currentWaypoint = 0;
+
+        // Keyboard controls
+        const keys = {};
+        document.addEventListener('keydown', (event) => {
+            keys[event.key] = true;
+            if (event.key === ' ' && !keys['spacePressed']) {
+                keys['spacePressed'] = true;
+                const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+                bullet.position.copy(airplaneGroup.position);
+                bullet.quaternion.copy(airplaneGroup.quaternion);
+                bullet.userData = {
+                    velocity: new THREE.Vector3(0, 0, -bulletSpeed).applyQuaternion(airplaneGroup.quaternion),
+                    time: performance.now() / 1000
+                };
+                scene.add(bullet);
+                bullets.push(bullet);
+            }
+        });
+        document.addEventListener('keyup', (event) => {
+            keys[event.key] = false;
+            if (event.key === ' ') keys['spacePressed'] = false;
+        });
+
+        // Terrain height
+        function getTerrainHeight(x, z) {
+            const scale = terrainSize / terrainSegments;
+            const gridX = Math.floor((x + terrainSize / 2) / scale);
+            const gridZ = Math.floor((z + terrainSize / 2) / scale);
+            if (gridX < 0 || gridX >= terrainSegments || gridZ < 0 || gridZ >= terrainSegments) return -50;
+            const index = (gridZ * (terrainSegments + 1) + gridX) * 3 + 2;
+            return vertices[index] - 50;
+        }
+
+        function updateFlightDynamics() {
+            // Player movement
+            let acc = new THREE.Vector3(0, 0, 0);
+            if (keys['w']) acc.z -= acceleration;
+            if (keys['s']) acc.z += acceleration;
+            if (keys['a']) acc.x -= acceleration;
+            if (keys['d']) acc.x += acceleration;
+            if (keys['ArrowUp']) acc.y += acceleration;
+            if (keys['ArrowDown']) acc.y -= acceleration;
+            acc.y += gravity;
+            velocity.add(acc);
+            velocity.clampLength(0, maxSpeed);
+            airplaneGroup.position.add(velocity.clone().multiplyScalar(0.1));
+
+            // Terrain collision
+            const terrainHeight = getTerrainHeight(airplaneGroup.position.x, airplaneGroup.position.z);
+            if (airplaneGroup.position.y < terrainHeight + 1) {
+                airplaneGroup.position.y = terrainHeight + 1;
+                velocity.y = Math.max(velocity.y, 0);
+            }
+
+            // Enemy AI
+            const target = waypoints[currentWaypoint];
+            const direction = target.clone().sub(enemyGroup.position).normalize();
+            const randomPerturbation = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1
+            );
+            enemyVelocity.lerp(direction.add(randomPerturbation).multiplyScalar(0.3), 0.05);
+            enemyGroup.position.add(enemyVelocity.clone().multiplyScalar(0.1));
+            enemyGroup.lookAt(enemyGroup.position.clone().add(enemyVelocity));
+            if (enemyGroup.position.distanceTo(target) < 10) {
+                currentWaypoint = (currentWaypoint + 1) % waypoints.length;
+            }
+
+            // Enemy firing
+            const currentTime = performance.now() / 1000;
+            if (currentTime - lastEnemyShot > 2) {
+                const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+                bullet.position.copy(enemyGroup.position);
+                const directionToPlayer = airplaneGroup.position.clone().sub(enemyGroup.position).normalize();
+                bullet.userData = {
+                    velocity: directionToPlayer.multiplyScalar(bulletSpeed),
+                    time: currentTime
+                };
+                scene.add(bullet);
+                enemyBullets.push(bullet);
+                lastEnemyShot = currentTime;
+            }
+
+            // Player bullets and scoring
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
+                if (bullet.position.distanceTo(enemyGroup.position) < 2) {
+                    score++;
+                    document.getElementById('score').textContent = score;
+                    scene.remove(bullet);
+                    bullets.splice(i, 1);
+                    enemyGroup.position.copy(waypoints[Math.floor(Math.random() * waypoints.length)]); // Respawn
+                    continue;
+                }
+                if (currentTime - bullet.userData.time > bulletLifetime) {
+                    scene.remove(bullet);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Enemy bullets and player hit detection
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                const bullet = enemyBullets[i];
+                bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
+                if (bullet.position.distanceTo(airplaneGroup.position) < 2) {
+                    score = Math.max(0, score - 1);
+                    document.getElementById('score').textContent = score;
+                    scene.remove(bullet);
+                    enemyBullets.splice(i, 1);
+                    continue;
+                }
+                if (currentTime - bullet.userData.time > bulletLifetime) {
+                    scene.remove(bullet);
+                    enemyBullets.splice(i, 1);
+                }
+            }
+
+            // Update HUD
+            document.getElementById('score').textContent = score;
+            document.getElementById('speed').textContent = (velocity.length() * 100).toFixed(2);
+
+            // Update camera
+            const offset = new THREE.Vector3(0, 5, 15);
+            camera.position.copy(airplaneGroup.position).add(offset);
+            camera.lookAt(airplaneGroup.position);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updateFlightDynamics();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,464 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Simulator - Multiplayer Party</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #party-ui {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #party-ui input {
+            margin: 10px;
+            padding: 5px;
+            width: 200px;
+        }
+        #party-ui button {
+            padding: 5px 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="controls" class="hidden">
+        <p>Controls:</p>
+        <p>W: Move Forward | S: Move Backward</p>
+        <p>A: Move Left | D: Move Right</p>
+        <p>Up: Move Up | Down: Move Down</p>
+        <p>Space: Shoot</p>
+    </div>
+    <div id="hud" class="hidden">
+        <p>Score: <span id="score">0</span></p>
+        <p>Speed: <span id="speed">0</span> m/s</p>
+        <p>Players: <span id="playerCount">0</span></p>
+        <p>Party ID: <span id="partyId">None</span></p>
+    </div>
+    <div id="party-ui">
+        <h2>Join or Create Party</h2>
+        <div>
+            <input type="text" id="partyInput" placeholder="Enter Party ID">
+            <button onclick="joinParty()">Join Party</button>
+        </div>
+        <div>
+            <button onclick="createParty()">Create Party</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // WebSocket setup (replace with your server URL)
+        const socket = io('https://your-websocket-server.com'); // Placeholder: Deploy your own socket.io server
+        let playerId = null;
+        let partyId = null;
+        const players = {};
+        const bullets = [];
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        // Skybox
+        const skyboxGeometry = new THREE.SphereGeometry(500, 32, 32);
+        const skyboxMaterial = new THREE.MeshBasicMaterial({
+            map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/skyboxsun25degtest.png'),
+            side: THREE.BackSide
+        });
+        const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+        scene.add(skybox);
+
+        // Terrain with Perlin noise
+        const terrainSize = 1000;
+        const terrainSegments = 100;
+        const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
+        const noise = new SimplexNoise();
+        const vertices = terrainGeometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            const x = vertices[i];
+            const z = vertices[i + 1];
+            const height = noise.noise2D(x / 100, z / 100) * 20;
+            vertices[i + 2] = height;
+        }
+        terrainGeometry.computeVertexNormals();
+        const terrainMaterial = new THREE.MeshStandardMaterial({
+            color: 0x228B22,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        terrain.rotation.x = -Math.PI / 2;
+        terrain.position.y = -50;
+        scene.add(terrain);
+
+        // Airplane factory function
+        function createAirplane(color, isLocal = false) {
+            const group = new THREE.Group();
+            const fuselageGeometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 32);
+            const fuselageMaterial = new THREE.MeshPhongMaterial({ color, shininess: 100, specular: 0x555555 });
+            const fuselage = new THREE.Mesh(fuselageGeometry, fuselageMaterial);
+            fuselage.rotation.z = Math.PI / 2;
+            group.add(fuselage);
+            const wingGeometry = new THREE.BoxGeometry(8, 0.2, 1.5);
+            const wingMaterial = new THREE.MeshPhongMaterial({ color: isLocal ? 0xC0C0C0 : color, shininess: 50 });
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-2, 0, 0);
+            group.add(leftWing);
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(2, 0, 0);
+            group.add(rightWing);
+            const tailGeometry = new THREE.BoxGeometry(2, 0.1, 1);
+            const tailMaterial = new THREE.MeshPhongMaterial({ color: isLocal ? 0xC0C0C0 : color, shininess: 50 });
+            const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+            tail.position.set(0, 0, 2.5);
+            group.add(tail);
+            const vStabGeometry = new THREE.BoxGeometry(0.1, 1, 1);
+            const vStab = new THREE.Mesh(vStabGeometry, tailMaterial);
+            vStab.position.set(0, 0.5, 2.5);
+            group.add(vStab);
+            return group;
+        }
+
+        // Player airplane (local)
+        const airplaneGroup = createAirplane(0x808080, true);
+        scene.add(airplaneGroup);
+
+        // Camera setup
+        camera.position.set(0, 5, 15);
+        scene.add(camera);
+
+        // Flight dynamics
+        let velocity = new THREE.Vector3(0, 0, 0);
+        const acceleration = 0.2;
+        const maxSpeed = 1.5; // 150 m/s on HUD
+        const gravity = -0.002;
+        let score = 0;
+
+        // Bullets
+        const bulletSpeed = 2;
+        const bulletLifetime = 2;
+
+        // Keyboard controls
+        const keys = {};
+        document.addEventListener('keydown', (event) => {
+            keys[event.key] = true;
+            if (event.key === ' ' && !keys['spacePressed'] && partyId) {
+                keys['spacePressed'] = true;
+                const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+                bullet.position.copy(airplaneGroup.position);
+                bullet.quaternion.copy(airplaneGroup.quaternion);
+                bullet.userData = {
+                    velocity: new THREE.Vector3(0, 0, -bulletSpeed).applyQuaternion(airplaneGroup.quaternion),
+                    time: performance.now() / 1000,
+                    playerId
+                };
+                scene.add(bullet);
+                bullets.push(bullet);
+                socket.emit('bullet', {
+                    position: bullet.position.toArray(),
+                    quaternion: bullet.quaternion.toArray(),
+                    velocity: bullet.userData.velocity.toArray(),
+                    time: bullet.userData.time,
+                    playerId,
+                    partyId
+                });
+            }
+        });
+        document.addEventListener('keyup', (event) => {
+            keys[event.key] = false;
+            if (event.key === ' ') keys['spacePressed'] = false;
+        });
+
+        // Party functions
+        function createParty() {
+            socket.emit('createParty');
+        }
+
+        function joinParty() {
+            const input = document.getElementById('partyInput').value.trim();
+            if (input) {
+                socket.emit('joinParty', input);
+            }
+        }
+
+        // WebSocket events
+        socket.on('connect', () => {
+            playerId = socket.id;
+        });
+
+        socket.on('partyCreated', (newPartyId) => {
+            partyId = newPartyId;
+            document.getElementById('partyId').textContent = partyId;
+            document.getElementById('party-ui').classList.add('hidden');
+            document.getElementById('controls').classList.remove('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            players[playerId] = {
+                group: airplaneGroup,
+                velocity: velocity,
+                score: 0
+            };
+            socket.emit('join', {
+                position: airplaneGroup.position.toArray(),
+                quaternion: airplaneGroup.quaternion.toArray(),
+                velocity: velocity.toArray(),
+                score: 0,
+                partyId
+            });
+        });
+
+        socket.on('partyJoined', (data) => {
+            if (data.success) {
+                partyId = data.partyId;
+                document.getElementById('partyId').textContent = partyId;
+                document.getElementById('party-ui').classList.add('hidden');
+                document.getElementById('controls').classList.remove('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                players[playerId] = {
+                    group: airplaneGroup,
+                    velocity: velocity,
+                    score: 0
+                };
+                socket.emit('join', {
+                    position: airplaneGroup.position.toArray(),
+                    quaternion: airplaneGroup.quaternion.toArray(),
+                    velocity: velocity.toArray(),
+                    score: 0,
+                    partyId
+                });
+            } else {
+                alert('Invalid Party ID');
+            }
+        });
+
+        socket.on('players', (playerData) => {
+            Object.keys(playerData).forEach(id => {
+                if (id === playerId) return;
+                if (!players[id]) {
+                    const color = Math.random() * 0xffffff;
+                    players[id] = {
+                        group: createAirplane(color),
+                        velocity: new THREE.Vector3()
+                    };
+                    scene.add(players[id].group);
+                }
+                players[id].group.position.fromArray(playerData[id].position);
+                players[id].group.quaternion.fromArray(playerData[id].quaternion);
+                players[id].velocity.fromArray(playerData[id].velocity);
+                players[id].score = playerData[id].score;
+            });
+            document.getElementById('playerCount').textContent = Object.keys(players).length;
+        });
+
+        socket.on('playerDisconnected', (id) => {
+            if (players[id]) {
+                scene.remove(players[id].group);
+                delete players[id];
+            }
+            document.getElementById('playerCount').textContent = Object.keys(players).length;
+        });
+
+        socket.on('bullet', (data) => {
+            if (data.partyId !== partyId) return;
+            const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            bullet.position.fromArray(data.position);
+            bullet.quaternion.fromArray(data.quaternion);
+            bullet.userData = {
+                velocity: new THREE.Vector3().fromArray(data.velocity),
+                time: data.time,
+                playerId: data.playerId
+            };
+            scene.add(bullet);
+            bullets.push(bullet);
+        });
+
+        socket.on('scoreUpdate', (data) => {
+            if (data.playerId === playerId) {
+                score = data.score;
+                document.getElementById('score').textContent = score;
+            }
+            if (players[data.playerId]) {
+                players[data.playerId].score = data.score;
+            }
+        });
+
+        // Terrain height
+        function getTerrainHeight(x, z) {
+            const scale = terrainSize / terrainSegments;
+            const gridX = Math.floor((x + terrainSize / 2) / scale);
+            const gridZ = Math.floor((z + terrainSize / 2) / scale);
+            if (gridX < 0 || gridX >= terrainSegments || gridZ < 0 || gridZ >= terrainSegments) return -50;
+            const index = (gridZ * (terrainSegments + 1) + gridX) * 3 + 2;
+            return vertices[index] - 50;
+        }
+
+        function updateFlightDynamics() {
+            // Player movement
+            let acc = new THREE.Vector3(0, 0, 0);
+            if (keys['w']) acc.z -= acceleration;
+            if (keys['s']) acc.z += acceleration;
+            if (keys['a']) acc.x -= acceleration;
+            if (keys['d']) acc.x += acceleration;
+            if (keys['ArrowUp']) acc.y += acceleration;
+            if (keys['ArrowDown']) acc.y -= acceleration;
+            acc.y += gravity;
+            velocity.add(acc);
+            velocity.clampLength(0, maxSpeed);
+            airplaneGroup.position.add(velocity.clone().multiplyScalar(0.1));
+
+            // Terrain collision
+            const terrainHeight = getTerrainHeight(airplaneGroup.position.x, airplaneGroup.position.z);
+            if (airplaneGroup.position.y < terrainHeight + 1) {
+                airplaneGroup.position.y = terrainHeight + 1;
+                velocity.y = Math.max(velocity.y, 0);
+            }
+
+            // Broadcast player state
+            if (playerId && partyId) {
+                socket.emit('update', {
+                    position: airplaneGroup.position.toArray(),
+                    quaternion: airplaneGroup.quaternion.toArray(),
+                    velocity: velocity.toArray(),
+                    score,
+                    partyId
+                });
+            }
+
+            // Bullets and scoring
+            const currentTime = performance.now() / 1000;
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
+                // Check for hits on other players
+                Object.keys(players).forEach(id => {
+                    if (id === bullet.userData.playerId) return;
+                    if (bullet.position.distanceTo(players[id].group.position) < 2) {
+                        socket.emit('hit', {
+                            shooterId: bullet.userData.playerId,
+                            targetId: id,
+                            partyId
+                        });
+                        scene.remove(bullet);
+                        bullets.splice(i, 1);
+                        return;
+                    }
+                });
+                if (currentTime - bullet.userData.time > bulletLifetime) {
+                    scene.remove(bullet);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Update HUD
+            document.getElementById('speed').textContent = (velocity.length() * 100).toFixed(2);
+            document.getElementById('score').textContent = score;
+
+            // Update camera
+            const offset = new THREE.Vector3(0, 5, 15);
+            camera.position.copy(airplaneGroup.position).add(offset);
+            camera.lookAt(airplaneGroup.position);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            if (partyId) {
+                updateFlightDynamics();
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

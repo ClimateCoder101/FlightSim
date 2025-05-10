@@ -14,8 +14,30 @@
             background: linear-gradient(to bottom, #87CEEB, #FFFFFF);
         }
         h1 {
-            margin-top: 20%;
+            margin-top: 5%;
             color: #333;
+        }
+        .currency {
+            font-size: 20px;
+            margin: 10px 0;
+            color: #333;
+        }
+        .garage {
+            margin: 20px 0;
+        }
+        .garage button {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .garage button:hover {
+            background-color: #0056b3;
         }
         a {
             display: inline-block;
@@ -34,12 +56,48 @@
 </head>
 <body>
     <h1>Welcome to FlyToday</h1>
+    <div class="currency">
+        <p>Currency: <span id="currency">0</span> Coins</p>
+    </div>
+    <div class="garage">
+        <h2>Garage</h2>
+        <button onclick="selectPlane('basic')">Basic Plane (Free)</button>
+        <button onclick="selectPlane('speedy')">Speedy Plane (100 Coins)</button>
+        <button onclick="selectPlane('armored')">Armored Plane (200 Coins)</button>
+    </div>
     <a href="/game.html">PLAYER VS COMPUTER</a>
     <a href="/multiplayer.html">MULTIPLAYER</a>
     <a href="/free.html">FREE PLAY</a>
     <a href="/settings.html">SETTINGS</a>
     <a href="/tutorial.html">HOW TO PLAY</a>
     <a href="/pro.html">PRO</a>
-    
+    <script>
+        let currency = parseInt(localStorage.getItem('currency')) || 0;
+        document.getElementById('currency').textContent = currency;
+
+        function selectPlane(plane) {
+            if (plane === 'basic') {
+                alert('Basic Plane selected!');
+                localStorage.setItem('selectedPlane', 'basic');
+            } else if (plane === 'speedy' && currency >= 100) {
+                alert('Speedy Plane selected!');
+                localStorage.setItem('selectedPlane', 'speedy');
+                currency -= 100;
+                updateCurrency();
+            } else if (plane === 'armored' && currency >= 200) {
+                alert('Armored Plane selected!');
+                localStorage.setItem('selectedPlane', 'armored');
+                currency -= 200;
+                updateCurrency();
+            } else {
+                alert('Not enough coins!');
+            }
+        }
+
+        function updateCurrency() {
+            localStorage.setItem('currency', currency);
+            document.getElementById('currency').textContent = currency;
+        }
+    </script>
 </body>
 </html>

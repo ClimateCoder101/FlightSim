@@ -78,9 +78,9 @@
         <p><a href="/index.html" style="color: lightblue; text-decoration: underline;">Back to Homepage</a></p>
     </div>
     <div id="hud">
-        <p>Score: <span id="score">0</span></p>
+        <p>Currency: <span id="currency">0</span> Coins</p>
         <p>Speed: <span id="speed">0</span> m/s</p>
-        <p>Altitude: <span id="altitude">0</span> m</span></p>
+        <p>Altitude: <span id="altitude">0</span> m</p>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
@@ -195,7 +195,7 @@
         const acceleration = 0.2; // Adjusted for responsiveness
         const maxSpeed = 1.5; // Scaled to represent 150 m/s (1.5 * 100 = 150 on HUD)
         const gravity = -0.002;
-        let score = 0;
+        let currency = parseInt(localStorage.getItem('currency')) || 0;
 
         // Enhanced AI behavior
         const enemyAcceleration = 0.05;
@@ -312,13 +312,14 @@
                 lastEnemyShot = currentTime;
             }
 
-            // Player bullets and scoring
+            // Player bullets and currency reward
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const bullet = bullets[i];
                 bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
                 if (bullet.position.distanceTo(enemyGroup.position) < 2) {
-                    score++;
-                    document.getElementById('score').textContent = score;
+                    currency += 50; // Reward 50 coins for defeating an enemy
+                    localStorage.setItem('currency', currency);
+                    document.getElementById('currency').textContent = currency;
                     scene.remove(bullet);
                     bullets.splice(i, 1);
                     enemyGroup.position.copy(waypoints[Math.floor(Math.random() * waypoints.length)]); // Respawn
@@ -335,8 +336,9 @@
                 const bullet = enemyBullets[i];
                 bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
                 if (bullet.position.distanceTo(airplaneGroup.position) < 2) {
-                    score = Math.max(0, score - 1);
-                    document.getElementById('score').textContent = score;
+                    currency = Math.max(0, currency - 10); // Deduct 10 coins for being hit
+                    localStorage.setItem('currency', currency);
+                    document.getElementById('currency').textContent = currency;
                     scene.remove(bullet);
                     enemyBullets.splice(i, 1);
                     continue;
@@ -348,7 +350,7 @@
             }
 
             // Update HUD
-            document.getElementById('score').textContent = score;
+            document.getElementById('currency').textContent = currency;
             document.getElementById('speed').textContent = (velocity.length() * 100).toFixed(2);
             const altitude = airplaneGroup.position.y.toFixed(2);
             document.getElementById('altitude').textContent = altitude;

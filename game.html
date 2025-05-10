@@ -80,6 +80,7 @@
     <div id="hud">
         <p>Score: <span id="score">0</span></p>
         <p>Speed: <span id="speed">0</span> m/s</p>
+        <p>Altitude: <span id="altitude">0</span> m</span></p>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
@@ -122,8 +123,8 @@
         terrainGeometry.computeVertexNormals();
         const terrainMaterial = new THREE.MeshStandardMaterial({
             color: 0x228B22,
-            roughness: 0.8,
-            metalness: 0.2
+            roughness: 0.5,
+            metalness: 0.3
         });
         const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
         terrain.rotation.x = -Math.PI / 2;
@@ -133,8 +134,12 @@
         // Player airplane
         const airplaneGroup = new THREE.Group();
         const fuselageGeometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 32);
-        const fuselageMaterial = new THREE.MeshPhongMaterial({ color: 0x808080, shininess: 100, specular: 0x555555 });
-        const fuselage = new THREE.Mesh(fuselageGeometry, fuselageMaterial);
+        const airplaneMaterial = new THREE.MeshPhongMaterial({
+            color: 0x808080,
+            shininess: 150,
+            specular: 0xaaaaaa
+        });
+        const fuselage = new THREE.Mesh(fuselageGeometry, airplaneMaterial);
         fuselage.rotation.z = Math.PI / 2;
         airplaneGroup.add(fuselage);
         const wingGeometry = new THREE.BoxGeometry(8, 0.2, 1.5);
@@ -158,7 +163,12 @@
 
         // Enemy airplane
         const enemyGroup = new THREE.Group();
-        const enemyFuselage = new THREE.Mesh(fuselageGeometry, new THREE.MeshPhongMaterial({ color: 0xff0000, shininess: 100 }));
+        const enemyMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff0000,
+            shininess: 150,
+            specular: 0xaaaaaa
+        });
+        const enemyFuselage = new THREE.Mesh(fuselageGeometry, enemyMaterial);
         enemyFuselage.rotation.z = Math.PI / 2;
         enemyGroup.add(enemyFuselage);
         const enemyLeftWing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 1), new THREE.MeshPhongMaterial({ color: 0x800000 }));
@@ -182,11 +192,29 @@
 
         // Flight dynamics
         let velocity = new THREE.Vector3(0, 0, 0);
-        let enemyVelocity = new THREE.Vector3(0, 0, -0.3); // Increased for more active movement
         const acceleration = 0.2; // Adjusted for responsiveness
         const maxSpeed = 1.5; // Scaled to represent 150 m/s (1.5 * 100 = 150 on HUD)
         const gravity = -0.002;
         let score = 0;
+
+        // Enhanced AI behavior
+        const enemyAcceleration = 0.05;
+        const enemyMaxSpeed = 1.2; // Slightly slower than the player
+        let enemyVelocity = new THREE.Vector3();
+
+        function updateEnemyAI() {
+            const directionToPlayer = airplaneGroup.position.clone().sub(enemyGroup.position).normalize();
+            const randomPerturbation = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1
+            );
+            const targetDirection = directionToPlayer.add(randomPerturbation).normalize();
+            const acceleration = targetDirection.multiplyScalar(enemyAcceleration);
+            enemyVelocity.add(acceleration).clampLength(0, enemyMaxSpeed);
+            enemyGroup.position.add(enemyVelocity.clone().multiplyScalar(0.1));
+            enemyGroup.lookAt(airplaneGroup.position);
+        }
 
         // Bullets (player and enemy)
         const bullets = [];
@@ -259,20 +287,13 @@
                 velocity.y = Math.max(velocity.y, 0);
             }
 
+            // Smooth airplane rotation based on velocity
+            const forwardDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(airplaneGroup.quaternion);
+            const targetRotation = new THREE.Quaternion().setFromUnitVectors(forwardDirection, velocity.clone().normalize());
+            airplaneGroup.quaternion.slerp(targetRotation, 0.1);
+
             // Enemy AI
-            const target = waypoints[currentWaypoint];
-            const direction = target.clone().sub(enemyGroup.position).normalize();
-            const randomPerturbation = new THREE.Vector3(
-                (Math.random() - 0.5) * 0.1,
-                (Math.random() - 0.5) * 0.1,
-                (Math.random() - 0.5) * 0.1
-            );
-            enemyVelocity.lerp(direction.add(randomPerturbation).multiplyScalar(0.3), 0.05);
-            enemyGroup.position.add(enemyVelocity.clone().multiplyScalar(0.1));
-            enemyGroup.lookAt(enemyGroup.position.clone().add(enemyVelocity));
-            if (enemyGroup.position.distanceTo(target) < 10) {
-                currentWaypoint = (currentWaypoint + 1) % waypoints.length;
-            }
+            updateEnemyAI();
 
             // Enemy firing
             const currentTime = performance.now() / 1000;
@@ -329,6 +350,8 @@
             // Update HUD
             document.getElementById('score').textContent = score;
             document.getElementById('speed').textContent = (velocity.length() * 100).toFixed(2);
+            const altitude = airplaneGroup.position.y.toFixed(2);
+            document.getElementById('altitude').textContent = altitude;
 
             // Update camera
             const offset = new THREE.Vector3(0, 5, 15);

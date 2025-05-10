@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Attack - FlyToday Minigame</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #result {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            color: #fff;
+            font-size: 2rem;
+            padding: 40px 60px;
+            border-radius: 16px;
+            z-index: 9999;
+            display: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <p>Time Attack</p>
+        <p>W: Forward | S: Backward | A: Left | D: Right</p>
+        <p>Up: Up | Down: Down</p>
+        <p><a href="/mini.html" style="color: lightblue; text-decoration: underline;">Back to Minigames</a></p>
+    </div>
+    <div id="hud">
+        <p>Speed: <span id="speed">0</span> m/s</p>
+        <p>Altitude: <span id="altitude">0</span> m</p>
+        <p>Time: <span id="timer">0.00</span> s</p>
+        <p>Checkpoints: <span id="cp">0</span>/3</p>
+    </div>
+    <div id="result"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+    <script>
+        // ...existing code from free.html...
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        // Skybox
+        const skyboxGeometry = new THREE.SphereGeometry(500, 32, 32);
+        const skyboxMaterial = new THREE.MeshBasicMaterial({
+            map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/skyboxsun25degtest.png'),
+            side: THREE.BackSide
+        });
+        const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+        scene.add(skybox);
+
+        // Terrain
+        const terrainSize = 1000;
+        const terrainSegments = 100;
+        const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
+        const noise = new SimplexNoise();
+        const vertices = terrainGeometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            const x = vertices[i];
+            const z = vertices[i + 1];
+            const height = noise.noise2D(x / 100, z / 100) * 20;
+            vertices[i + 2] = height;
+        }
+        terrainGeometry.computeVertexNormals();
+        const terrainMaterial = new THREE.MeshStandardMaterial({
+            color: 0x228B22,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        terrain.rotation.x = -Math.PI / 2;
+        terrain.position.y = -50;
+        scene.add(terrain);
+
+        // Checkpoints
+        const checkpoints = [
+            new THREE.Vector3(0, 20, -200),
+            new THREE.Vector3(200, 30, 0),
+            new THREE.Vector3(0, 10, 200)
+        ];
+        const cpMeshes = [];
+        checkpoints.forEach((cp, i) => {
+            const geo = new THREE.TorusGeometry(10, 1, 8, 32);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(cp);
+            mesh.rotation.x = Math.PI / 2;
+            scene.add(mesh);
+            cpMeshes.push(mesh);
+        });
+
+        // Player airplane
+        const airplaneGroup = new THREE.Group();
+        const fuselageGeometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 32);
+        const fuselageMaterial = new THREE.MeshPhongMaterial({ color: 0x808080, shininess: 100, specular: 0x555555 });
+        const fuselage = new THREE.Mesh(fuselageGeometry, fuselageMaterial);
+        fuselage.rotation.z = Math.PI / 2;
+        airplaneGroup.add(fuselage);
+        const wingGeometry = new THREE.BoxGeometry(8, 0.2, 1.5);
+        const wingMaterial = new THREE.MeshPhongMaterial({ color: 0xC0C0C0, shininess: 50 });
+        const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        leftWing.position.set(-2, 0, 0);
+        airplaneGroup.add(leftWing);
+        const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+        rightWing.position.set(2, 0, 0);
+        airplaneGroup.add(rightWing);
+        const tailGeometry = new THREE.BoxGeometry(2, 0.1, 1);
+        const tailMaterial = new THREE.MeshPhongMaterial({ color: 0xC0C0C0, shininess: 50 });
+        const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+        tail.position.set(0, 0, 2.5);
+        airplaneGroup.add(tail);
+        const vStabGeometry = new THREE.BoxGeometry(0.1, 1, 1);
+        const vStab = new THREE.Mesh(vStabGeometry, tailMaterial);
+        vStab.position.set(0, 0.5, 2.5);
+        airplaneGroup.add(vStab);
+        scene.add(airplaneGroup);
+
+        // Start at first checkpoint
+        airplaneGroup.position.copy(checkpoints[0]).add(new THREE.Vector3(0, 0, -40));
+
+        // Camera setup
+        camera.position.set(0, 25, -60);
+        scene.add(camera);
+
+        // Flight dynamics
+        let velocity = new THREE.Vector3(0, 0, 0);
+        const acceleration = 0.2;
+        const maxSpeed = 1.5;
+        const gravity = -0.002;
+
+        // Timer
+        let startTime = null;
+        let elapsed = 0;
+        let cpIndex = 0;
+        let finished = false;
+
+        // Keyboard controls
+        const keys = {};
+        document.addEventListener('keydown', (event) => {
+            keys[event.key] = true;
+        });
+        document.addEventListener('keyup', (event) => {
+            keys[event.key] = false;
+        });
+
+        // Terrain height
+        function getTerrainHeight(x, z) {
+            const scale = terrainSize / terrainSegments;
+            const gridX = Math.floor((x + terrainSize / 2) / scale);
+            const gridZ = Math.floor((z + terrainSize / 2) / scale);
+            if (gridX < 0 || gridX >= terrainSegments || gridZ < 0 || gridZ >= terrainSegments) return -50;
+            const index = (gridZ * (terrainSegments + 1) + gridX) * 3 + 2;
+            return vertices[index] - 50;
+        }
+
+        function updateFlightDynamics() {
+            if (finished) return;
+            // Player movement
+            let acc = new THREE.Vector3(0, 0, 0);
+            if (keys['w']) acc.z -= acceleration;
+            if (keys['s']) acc.z += acceleration;
+            if (keys['a']) acc.x -= acceleration;
+            if (keys['d']) acc.x += acceleration;
+            if (keys['ArrowUp']) acc.y += acceleration;
+            if (keys['ArrowDown']) acc.y -= acceleration;
+            acc.y += gravity;
+            velocity.add(acc);
+            velocity.clampLength(0, maxSpeed);
+            airplaneGroup.position.add(velocity.clone().multiplyScalar(0.1));
+
+            // Terrain collision
+            const terrainHeight = getTerrainHeight(airplaneGroup.position.x, airplaneGroup.position.z);
+            if (airplaneGroup.position.y < terrainHeight + 1) {
+                airplaneGroup.position.y = terrainHeight + 1;
+                velocity.y = Math.max(velocity.y, 0);
+            }
+
+            // Check for checkpoint
+            if (cpIndex < checkpoints.length) {
+                if (airplaneGroup.position.distanceTo(checkpoints[cpIndex]) < 12) {
+                    cpMeshes[cpIndex].material.color.set(0x00ff00);
+                    cpIndex++;
+                    if (cpIndex === 1) startTime = performance.now();
+                    if (cpIndex === checkpoints.length) {
+                        finished = true;
+                        elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                        showResult(`Finished! Time: ${elapsed} s<br><a href='/mini.html' style='color:lightblue;'>Back to Minigames</a>`);
+                    }
+                }
+            }
+
+            // Update HUD
+            document.getElementById('speed').textContent = (velocity.length() * 100).toFixed(2);
+            const altitude = airplaneGroup.position.y.toFixed(2);
+            document.getElementById('altitude').textContent = altitude;
+            document.getElementById('cp').textContent = cpIndex;
+            if (cpIndex > 0 && !finished) {
+                elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+            }
+            document.getElementById('timer').textContent = elapsed;
+
+            // Update camera
+            const offset = new THREE.Vector3(0, 5, 15);
+            camera.position.copy(airplaneGroup.position).add(offset);
+            camera.lookAt(airplaneGroup.position);
+        }
+
+        function showResult(msg) {
+            document.getElementById('result').innerHTML = msg;
+            document.getElementById('result').style.display = 'block';
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updateFlightDynamics();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

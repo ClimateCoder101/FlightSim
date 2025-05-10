@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple Car Simulator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+</head>
+<body>
+<script>
+let car;
+let track;
+
+function setup() {
+  createCanvas(800, 600);
+  car = new Car(width / 2, height / 2);
+  track = new Track();
+}
+
+function draw() {
+  background(100); // Gray background
+  track.display();
+  car.update();
+  car.display();
+}
+
+class Car {
+  constructor(x, y) {
+    this.pos = createVector(x, y);
+    this.vel = createVector(0, 0);
+    this.angle = 0; // Car's heading in degrees
+    this.maxSpeed = 5;
+    this.acceleration = 0.1;
+    this.brake = 0.05;
+    this.turnSpeed = 3;
+  }
+
+  update() {
+    // Handle input
+    if (keyIsDown(87)) { // W: Accelerate
+      let acc = p5.Vector.fromAngle(radians(this.angle)).mult(this.acceleration);
+      this.vel.add(acc);
+    }
+    if (keyIsDown(83)) { // S: Brake/Reverse
+      let brake = this.vel.copy().normalize().mult(-this.brake);
+      this.vel.add(brake);
+    }
+    if (keyIsDown(LEFT_ARROW)) { // Left: Turn
+      this.angle -= this.turnSpeed;
+    }
+    if (keyIsDown(RIGHT_ARROW)) { // Right: Turn
+      this.angle += this.turnSpeed;
+    }
+
+    // Limit speed
+    if (this.vel.mag() > this.maxSpeed) {
+      this.vel.setMag(this.maxSpeed);
+    }
+
+    // Apply friction
+    this.vel.mult(0.98);
+
+    // Update position
+    this.pos.add(this.vel);
+
+    // Boundary collision
+    if (this.pos.x < 0 || this.pos.x > width) {
+      this.pos.x = constrain(this.pos.x, 0, width);
+      this.vel.x *= -0.5; // Bounce back
+    }
+    if (this.pos.y < 0 || this.pos.y > height) {
+      this.pos.y = constrain(this.pos.y, 0, height);
+      this.vel.y *= -0.5;
+    }
+  }
+
+  display() {
+    push();
+    translate(this.pos.x, this.pos.y);
+    rotate(radians(this.angle));
+    fill(255, 0, 0); // Red car
+    rectMode(CENTER);
+    rect(0, 0, 40, 20); // Car body
+    pop();
+  }
+}
+
+class Track {
+  constructor() {
+    this.points = [
+      createVector(100, 100),
+      createVector(700, 100),
+      createVector(700, 500),
+      createVector(100, 500)
+    ];
+  }
+
+  display() {
+    noFill();
+    stroke(255);
+    strokeWeight(10);
+    beginShape();
+    for (let p of this.points) {
+      vertex(p.x, p.y);
+    }
+    endShape(CLOSE);
+  }
+}
+</script>
+</body>
+</html>

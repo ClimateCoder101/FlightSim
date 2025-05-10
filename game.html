@@ -353,14 +353,25 @@
             if (ownedUpgrades.includes('headlights')) {
                 if (!headlights) {
                     headlights = new THREE.SpotLight(0xffffff, 2, 100, Math.PI / 8, 0.5, 1);
-                    headlights.position.set(2.5, 0, 0); // front of the plane
-                    headlights.target.position.set(10, 0, 0);
+                    // Place at the front of the plane in world space (+X is front due to fuselage rotation)
+                    headlights.position.set(2.5, 0, 0);
+                    headlights.target.position.set(12, 0, 0);
                     airplaneGroup.add(headlights);
                     airplaneGroup.add(headlights.target);
                 }
-                // Update position and direction every frame
-                headlights.position.set(2.5, 0, 0);
-                headlights.target.position.set(12, 0, 0);
+                // Always update position and direction to be at the front and point forward (+X in local space)
+                // Use localToWorld to get the correct world position for the front
+                const frontLocal = new THREE.Vector3(2.5, 0, 0);
+                const targetLocal = new THREE.Vector3(12, 0, 0);
+                const frontWorld = airplaneGroup.localToWorld(frontLocal.clone());
+                const targetWorld = airplaneGroup.localToWorld(targetLocal.clone());
+                // Remove from parent to set world position, then re-add to airplaneGroup
+                scene.add(headlights);
+                scene.add(headlights.target);
+                headlights.position.copy(frontWorld);
+                headlights.target.position.copy(targetWorld);
+                airplaneGroup.attach(headlights);
+                airplaneGroup.attach(headlights.target);
                 headlights.visible = true;
             } else if (headlights) {
                 headlights.visible = false;

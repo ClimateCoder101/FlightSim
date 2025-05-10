@@ -525,10 +525,12 @@
                 const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
                 const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
-                // Position the bullet at the front of the enemy airplane
-                const frontOffset = new THREE.Vector3(2.5, 0, 0);
-                const bulletPosition = frontOffset.applyQuaternion(enemyGroup.quaternion).add(enemyGroup.position);
-                bullet.position.copy(bulletPosition);
+                // --- FIX: Position the bullet at the front of the enemy airplane ---
+                // The enemyGroup's local +X axis is the front (because the fuselage is rotated z=PI/2)
+                // So we use a positive X offset in local space, then convert to world space
+                const frontOffset = new THREE.Vector3(2.5, 0, 0); // 2.5 units in +X (front)
+                const worldFront = enemyGroup.localToWorld(frontOffset.clone());
+                bullet.position.copy(worldFront);
 
                 // Predictive aiming: estimate where the player will be
                 const playerFuture = airplaneGroup.position.clone().add(

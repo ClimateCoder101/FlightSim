@@ -91,6 +91,9 @@
         <div id="missionTracker" style="margin-top:10px; color:#fff;">
             <strong>Mission:</strong> <span id="missionText">Destroy the enemy plane!</span>
         </div>
+        <div id="roundReminder" style="margin-top:10px; color:#FFD700; font-weight:bold;">
+            <!-- Will be filled by JS -->
+        </div>
         <canvas id="minimap" width="120" height="120" style="margin-top:10px; background:rgba(0,0,0,0.5); border-radius:8px; border:1px solid #fff;"></canvas>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -462,6 +465,13 @@
         let enemyMaxHealth = 100;
         let enemyHealth = enemyMaxHealth;
 
+        // --- ROUND SYSTEM STATE ---
+        let round = 1;
+        let planesToDestroy = 5;
+        let planesDestroyedThisRound = 0;
+        let roundEarnings = 0;
+        let inGame = true;
+
         function updateFlightDynamics() {
             // Player movement
             let acc = new THREE.Vector3(0, 0, 0);
@@ -525,9 +535,8 @@
                     // Damage enemy
                     enemyHealth -= 50;
                     if (enemyHealth <= 0) {
-                        currency += 50;
-                        localStorage.setItem('currency', currency);
-                        document.getElementById('currency').textContent = currency;
+                        planesDestroyedThisRound++;
+                        roundEarnings += 50;
                         createExplosion(enemyGroup.position.clone());
                         triggerCameraShake();
                         scene.remove(bullet);
@@ -538,6 +547,12 @@
                         setTimeout(() => {
                             document.getElementById('missionText').textContent = "Destroy the enemy plane!";
                         }, 2000);
+
+                        // Check for round completion
+                        if (planesDestroyedThisRound >= planesToDestroy) {
+                            inGame = false;
+                            showRoundCompleteDialog();
+                        }
                         continue;
                     }
                     scene.remove(bullet);
@@ -561,19 +576,9 @@
                     } else {
                         playerHealth -= 25;
                         if (playerHealth <= 0) {
-                            playerHealth = playerMaxHealth;
-                            currency = Math.max(0, currency - 10);
-                            localStorage.setItem('currency', currency);
-                            document.getElementById('currency').textContent = currency;
-                            document.getElementById('missionText').textContent = "You were shot down! Respawning...";
-                            showDeathMessage();
-                            setTimeout(() => {
-                                document.getElementById('missionText').textContent = "Destroy the enemy plane!";
-                                hideDeathMessage();
-                            }, 2500);
-                            // Respawn player at start
-                            airplaneGroup.position.set(0, 5, 15);
-                            velocity.set(0, 0, 0);
+                            inGame = false;
+                            showDeathPaymentDialog();
+                            break;
                         }
                     }
                     createExplosion(airplaneGroup.position.clone());
@@ -600,6 +605,11 @@
 
             // Update minimap
             updateMinimap();
+
+            // Update round reminder in HUD
+            document.getElementById('roundReminder').textContent =
+                `Round ${round}: Destroy ${planesToDestroy} planes (Remaining: ${planesToDestroy - planesDestroyedThisRound}). ` +
+                `If you die, pay 500 coins to continue. Each round, you must destroy one more plane!`;
 
             // Update camera
             const offset = new THREE.Vector3(0, 5, 15);
@@ -669,6 +679,111 @@
             if (msg) msg.style.display = 'none';
         }
 
+        // --- ROUND/DEATH DIALOGS ---
+
+        function showDeathPaymentDialog() {
+            // Overlay
+            let overlay = document.getElementById('deathPaymentOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'deathPaymentOverlay';
+                overlay.style.position = 'fixed';
+                overlay.style.top = 0;
+                overlay.style.left = 0;
+                overlay.style.width = '100vw';
+                overlay.style.height = '100vh';
+                overlay.style.background = 'rgba(0,0,0,0.85)';
+                overlay.style.display = 'flex';
+                overlay.style.flexDirection = 'column';
+                overlay.style.alignItems = 'center';
+                overlay.style.justifyContent = 'center';
+                overlay.style.zIndex = 99999;
+                overlay.innerHTML = `
+                    <div style="background:#222; color:#fff; padding:40px 30px; border-radius:16px; text-align:center;">
+                        <h2>You have been shot down!</h2>
+                        <p>Pay <b>500 coins</b> to continue this round?</p>
+                        <button id="payToContinueBtn" style="margin:10px 20px; padding:10px 30px; font-size:1.2rem;">Pay & Continue</button>
+                        <button id="giveUpBtn" style="margin:10px 20px; padding:10px 30px; font-size:1.2rem; background:#dc3545; color:#fff;">Give Up</button>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            } else {
+                overlay.style.display = 'flex';
+            }
+            document.getElementById('payToContinueBtn').onclick = function() {
+                if (currency >= 500) {
+                    currency -= 500;
+                    localStorage.setItem('currency', currency);
+                    document.getElementById('currency').textContent = currency;
+                    playerHealth = playerMaxHealth;
+                    velocity.set(0, 0, 0);
+                    airplaneGroup.position.set(0, 5, 15);
+                    overlay.style.display = 'none';
+                    inGame = true;
+                } else {
+                    alert("Not enough coins! You can't continue.");
+                }
+            };
+            document.getElementById('giveUpBtn').onclick = function() {
+                overlay.innerHTML = `
+                    <div style="background:#222; color:#fff; padding:40px 30px; border-radius:16px; text-align:center;">
+                        <h2>Game Over</h2>
+                        <p>You didn't have enough coins to continue. You lost your round earnings.</p>
+                        <a href="/index.html" style="display:inline-block; margin-top:20px; padding:10px 30px; background:#007BFF; color:#fff; border-radius:8px; text-decoration:none; font-size:1.1rem;">Back to Homepage</a>
+                    </div>
+                `;
+            };
+        }
+
+        function showRoundCompleteDialog() {
+            let overlay = document.getElementById('roundCompleteOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'roundCompleteOverlay';
+                overlay.style.position = 'fixed';
+                overlay.style.top = 0;
+                overlay.style.left = 0;
+                overlay.style.width = '100vw';
+                overlay.style.height = '100vh';
+                overlay.style.background = 'rgba(0,0,0,0.85)';
+                overlay.style.display = 'flex';
+                overlay.style.flexDirection = 'column';
+                overlay.style.alignItems = 'center';
+                overlay.style.justifyContent = 'center';
+                overlay.style.zIndex = 99999;
+                document.body.appendChild(overlay);
+            }
+            overlay.innerHTML = `
+                <div style="background:#222; color:#fff; padding:40px 30px; border-radius:16px; text-align:center;">
+                    <h2>Round Complete!</h2>
+                    <p>You destroyed ${planesToDestroy} planes and earned <b>${roundEarnings} coins</b> this round.</p>
+                    <button id="nextRoundBtn" style="margin:10px 20px; padding:10px 30px; font-size:1.2rem;">Next Round</button>
+                    <button id="toHomeBtn" style="margin:10px 20px; padding:10px 30px; font-size:1.2rem; background:#007BFF; color:#fff;">Back to Homepage</button>
+                </div>
+            `;
+            document.getElementById('nextRoundBtn').onclick = function() {
+                // Add round earnings to currency
+                currency += roundEarnings;
+                localStorage.setItem('currency', currency);
+                document.getElementById('currency').textContent = currency;
+                round++;
+                planesToDestroy++;
+                planesDestroyedThisRound = 0;
+                roundEarnings = 0;
+                playerHealth = playerMaxHealth;
+                velocity.set(0, 0, 0);
+                airplaneGroup.position.set(0, 5, 15);
+                overlay.style.display = 'none';
+                inGame = true;
+            };
+            document.getElementById('toHomeBtn').onclick = function() {
+                // Add round earnings to currency
+                currency += roundEarnings;
+                localStorage.setItem('currency', currency);
+                window.location.href = "/index.html";
+            };
+        }
+
         // Animation loop
         let lastTime = performance.now() / 1000;
         function animate() {
@@ -676,8 +791,10 @@
             const now = performance.now() / 1000;
             const delta = now - lastTime;
             lastTime = now;
-            updateSkyAndWeather(delta);
-            updateFlightDynamics();
+            if (inGame) {
+                updateSkyAndWeather(delta);
+                updateFlightDynamics();
+            }
             renderer.render(scene, camera);
         }
         animate();

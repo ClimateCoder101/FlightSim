@@ -11,23 +11,42 @@
     <header>
         <h1>Welcome to FlyToday</h1>
     </header>
-    <div class="auth-container" id="auth-container">
-        <input type="text" id="username" placeholder="Enter Username">
-        <input type="password" id="password" placeholder="Enter Password">
-        <button onclick="signIn()">Sign In</button>
-        <button onclick="signUp()">Sign Up</button>
-    </div>
-    <div id="main-content" class="main-content" style="display: none;">
-        <a href="/game.html">PLAYER VS COMPUTER</a>
-        <a href="/multiplayer.html">MULTIPLAYER</a>
-        <a href="/free.html">FREE PLAY</a>
-        <a href="/garage.html">GARAGE</a>
-        <a href="/settings.html">SETTINGS</a>
-        <a href="/tutorial.html">HOW TO PLAY</a>
-        <a href="/pro.html">PRO</a>
-        <a href="#" onclick="accessAdmin()">ADMIN</a>
-        <a href="#" onclick="logout()">LOGOUT</a>
-    </div>
+    <main>
+        <section id="auth-container" class="auth-container">
+            <input type="text" id="username" placeholder="Enter Username">
+            <input type="password" id="password" placeholder="Enter Password">
+            <button onclick="signIn()">Sign In</button>
+            <button onclick="signUp()">Sign Up</button>
+        </section>
+        <section id="main-content" class="main-content" style="display: none;">
+            <a href="/game.html">PLAYER VS COMPUTER</a>
+            <a href="/multiplayer.html">MULTIPLAYER</a>
+            <a href="/free.html">FREE PLAY</a>
+            <a href="/garage.html">GARAGE</a>
+            <a href="/settings.html">SETTINGS</a>
+            <a href="/tutorial.html">HOW TO PLAY</a>
+            <a href="/pro.html">PRO</a>
+            <a href="#" onclick="accessAdmin()">ADMIN</a>
+            <a href="#" onclick="logout()">LOGOUT</a>
+        </section>
+        <section id="features" class="features">
+            <h2>Why Choose FlyToday?</h2>
+            <ul>
+                <li>Realistic flight dynamics and terrain.</li>
+                <li>Multiplayer mode to compete with friends.</li>
+                <li>Customizable airplanes and exclusive maps.</li>
+                <li>Earn coins and unlock new features.</li>
+            </ul>
+        </section>
+        <section id="about" class="about">
+            <h2>About FlyToday</h2>
+            <p>
+                FlyToday is the ultimate flight simulator experience. Whether you're a beginner or a pro, 
+                FlyToday offers a range of features to keep you engaged. Explore terrains, compete in multiplayer, 
+                and customize your airplanes to dominate the skies.
+            </p>
+        </section>
+    </main>
     <footer>
         &copy; 2025 FlyToday. All rights reserved.
     </footer>

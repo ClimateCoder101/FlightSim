@@ -70,6 +70,7 @@
         <a href="/tutorial.html">HOW TO PLAY</a>
         <a href="/pro.html">PRO</a>
         <a href="#" onclick="accessAdmin()">ADMIN</a>
+        <a href="#" onclick="logout()">LOGOUT</a>
     </div>
     <script>
         const users = JSON.parse(localStorage.getItem('users')) || {};
@@ -114,6 +115,12 @@
             } else {
                 alert("Invalid Admin Code!");
             }
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            alert('You have been logged out.');
+            location.reload(); // Reload the page to show the sign-in/sign-up form
         }
 
         // Auto sign-in if already logged in

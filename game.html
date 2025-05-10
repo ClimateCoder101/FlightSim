@@ -307,13 +307,18 @@
                 const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
                 // Position the bullet at the front of the enemy airplane
-                const frontOffset = new THREE.Vector3(2.5, 0, 0); // Adjust offset as needed
+                const frontOffset = new THREE.Vector3(2.5, 0, 0);
                 const bulletPosition = frontOffset.applyQuaternion(enemyGroup.quaternion).add(enemyGroup.position);
                 bullet.position.copy(bulletPosition);
 
-                const directionToPlayer = airplaneGroup.position.clone().sub(bullet.position).normalize();
+                // Predictive aiming: estimate where the player will be
+                const playerFuture = airplaneGroup.position.clone().add(
+                    velocity.clone().normalize().multiplyScalar(2.5)
+                );
+                const directionToFuturePlayer = playerFuture.clone().sub(bullet.position).normalize();
+
                 bullet.userData = {
-                    velocity: directionToPlayer.multiplyScalar(bulletSpeed),
+                    velocity: directionToFuturePlayer.multiplyScalar(bulletSpeed),
                     time: currentTime
                 };
                 scene.add(bullet);

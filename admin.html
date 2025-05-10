@@ -51,13 +51,21 @@
     </style>
 </head>
 <body>
-    <h1>Admin Panel</h1>
-    <div class="admin-actions">
-        <button onclick="resetCurrency()">Reset All User Currency</button>
-        <button onclick="viewUsers()">View All Users</button>
-        <button onclick="logout()">Logout</button>
+    <div id="admin-content" style="display:none;">
+        <h1>Admin Panel</h1>
+        <div class="admin-actions">
+            <button onclick="resetCurrency()">Reset All User Currency</button>
+            <button onclick="viewUsers()">View All Users</button>
+            <button onclick="logout()">Logout</button>
+        </div>
+        <a href="/index.html">Back to Homepage</a>
     </div>
-    <a href="/index.html">Back to Homepage</a>
+    <div id="admin-login" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
+        <h2>Admin Login</h2>
+        <input type="password" id="adminPass" placeholder="Enter Admin Password" style="padding:10px; font-size:16px; margin-bottom:10px;">
+        <button onclick="adminLogin()" style="padding:10px 20px; font-size:16px;">Login</button>
+        <p id="adminError" style="color:red; margin-top:10px; display:none;">Incorrect password.</p>
+    </div>
     <script>
         function resetCurrency() {
             if (confirm("Are you sure you want to reset all user currency?")) {
@@ -78,7 +86,24 @@
         function logout() {
             localStorage.removeItem('currentUser');
             alert('You have been logged out.');
-            window.location.href = "/index.html"; // Redirect to the homepage
+            window.location.href = "/signin.html";
+        }
+
+        // Admin authentication
+        const ADMIN_PASS = "64083950ADMIN";
+        if (sessionStorage.getItem('adminAuthed') === "true") {
+            document.getElementById('admin-content').style.display = 'block';
+            document.getElementById('admin-login').style.display = 'none';
+        }
+        function adminLogin() {
+            const pass = document.getElementById('adminPass').value;
+            if (pass === ADMIN_PASS) {
+                sessionStorage.setItem('adminAuthed', "true");
+                document.getElementById('admin-content').style.display = 'block';
+                document.getElementById('admin-login').style.display = 'none';
+            } else {
+                document.getElementById('adminError').style.display = 'block';
+            }
         }
     </script>
 </body>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In / Sign Up - FlyToday</title>
+    <link rel="icon" type="image/svg+xml" href="2.svg">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #87CEEB, #FFFFFF);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-box {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+            padding: 32px 28px;
+            text-align: center;
+            min-width: 320px;
+        }
+        .auth-box h2 {
+            margin-top: 0;
+        }
+        .auth-box input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        .auth-box button {
+            padding: 10px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+            background: #007BFF;
+            color: #fff;
+            margin: 10px 5px 0 5px;
+            cursor: pointer;
+        }
+        .auth-box button:hover {
+            background: #0056b3;
+        }
+        .auth-box .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .auth-box .success {
+            color: green;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-box">
+        <h2>Sign In / Sign Up</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <div>
+            <button onclick="signIn()">Sign In</button>
+            <button onclick="signUp()">Sign Up</button>
+        </div>
+        <div id="authMsg" class="error" style="display:none;"></div>
+    </div>
+    <script>
+        const users = JSON.parse(localStorage.getItem('users')) || {};
+
+        function signIn() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const msg = document.getElementById('authMsg');
+            if (users[username] && users[username] === password) {
+                localStorage.setItem('currentUser', username);
+                msg.style.display = 'block';
+                msg.className = 'success';
+                msg.textContent = 'Sign-in successful! Redirecting...';
+                setTimeout(() => window.location.href = "/index.html", 1000);
+            } else {
+                msg.style.display = 'block';
+                msg.className = 'error';
+                msg.textContent = 'Invalid username or password!';
+            }
+        }
+
+        function signUp() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const msg = document.getElementById('authMsg');
+            if (username && password) {
+                if (users[username]) {
+                    msg.style.display = 'block';
+                    msg.className = 'error';
+                    msg.textContent = 'Username already exists!';
+                } else {
+                    users[username] = password;
+                    localStorage.setItem('users', JSON.stringify(users));
+                    msg.style.display = 'block';
+                    msg.className = 'success';
+                    msg.textContent = 'Sign-up successful! You can now sign in.';
+                }
+            } else {
+                msg.style.display = 'block';
+                msg.className = 'error';
+                msg.textContent = 'Please enter a valid username and password!';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -35,6 +35,29 @@
         .admin-actions button:hover {
             background-color: #0056b3;
         }
+        .admin-section {
+            margin: 30px auto;
+            max-width: 600px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 24px 18px;
+        }
+        .admin-section h2 {
+            color: #007BFF;
+        }
+        .admin-section input, .admin-section select {
+            padding: 8px;
+            margin: 6px 0;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        .admin-section label {
+            display: block;
+            margin-top: 12px;
+            font-weight: bold;
+        }
         a {
             display: inline-block;
             margin-top: 20px;
@@ -48,6 +71,36 @@
         a:hover {
             background-color: #0056b3;
         }
+        .user-list {
+            margin: 10px 0;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f7f7f7;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .user-list span {
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .user-list button {
+            background: #dc3545;
+            margin-left: 10px;
+            padding: 2px 10px;
+            font-size: 14px;
+        }
+        .user-list button:hover {
+            background: #b52a37;
+        }
+        .success-msg {
+            color: green;
+            margin-top: 10px;
+        }
+        .error-msg {
+            color: red;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -57,6 +110,30 @@
             <button onclick="resetCurrency()">Reset All User Currency</button>
             <button onclick="viewUsers()">View All Users</button>
             <button onclick="logout()">Logout</button>
+        </div>
+        <div class="admin-section">
+            <h2>Give Coins to User</h2>
+            <input type="text" id="giveUser" placeholder="Username">
+            <input type="number" id="giveAmount" placeholder="Amount" min="1">
+            <button onclick="giveCoins()">Give Coins</button>
+            <div id="giveMsg"></div>
+        </div>
+        <div class="admin-section">
+            <h2>Delete User</h2>
+            <input type="text" id="deleteUser" placeholder="Username">
+            <button onclick="deleteUser()">Delete User</button>
+            <div id="deleteMsg"></div>
+        </div>
+        <div class="admin-section">
+            <h2>Change User Password</h2>
+            <input type="text" id="changeUser" placeholder="Username">
+            <input type="password" id="newPassword" placeholder="New Password">
+            <button onclick="changePassword()">Change Password</button>
+            <div id="changeMsg"></div>
+        </div>
+        <div class="admin-section">
+            <h2>All Users</h2>
+            <div class="user-list" id="userList"></div>
         </div>
         <a href="/index.html">Back to Homepage</a>
     </div>
@@ -89,11 +166,106 @@
             window.location.href = "/signin.html";
         }
 
+        // Give coins to a user
+        function giveCoins() {
+            const user = document.getElementById('giveUser').value.trim();
+            const amount = parseInt(document.getElementById('giveAmount').value, 10);
+            const msg = document.getElementById('giveMsg');
+            if (!user || isNaN(amount) || amount <= 0) {
+                msg.textContent = "Enter a valid username and amount.";
+                msg.className = "error-msg";
+                return;
+            }
+            let userCurrency = JSON.parse(localStorage.getItem('userCurrency') || '{}');
+            userCurrency[user] = (userCurrency[user] || 0) + amount;
+            localStorage.setItem('userCurrency', JSON.stringify(userCurrency));
+            msg.textContent = `Gave ${amount} coins to ${user}.`;
+            msg.className = "success-msg";
+        }
+
+        // Delete a user
+        function deleteUser() {
+            const user = document.getElementById('deleteUser').value.trim();
+            const msg = document.getElementById('deleteMsg');
+            let users = JSON.parse(localStorage.getItem('users')) || {};
+            if (users[user]) {
+                delete users[user];
+                localStorage.setItem('users', JSON.stringify(users));
+                msg.textContent = `User ${user} deleted.`;
+                msg.className = "success-msg";
+                renderUserList();
+            } else {
+                msg.textContent = "User not found.";
+                msg.className = "error-msg";
+            }
+        }
+
+        // Change user password
+        function changePassword() {
+            const user = document.getElementById('changeUser').value.trim();
+            const newPass = document.getElementById('newPassword').value;
+            const msg = document.getElementById('changeMsg');
+            let users = JSON.parse(localStorage.getItem('users')) || {};
+            if (users[user]) {
+                users[user] = newPass;
+                localStorage.setItem('users', JSON.stringify(users));
+                msg.textContent = `Password for ${user} changed.`;
+                msg.className = "success-msg";
+            } else {
+                msg.textContent = "User not found.";
+                msg.className = "error-msg";
+            }
+        }
+
+        // Render all users with quick actions
+        function renderUserList() {
+            const users = JSON.parse(localStorage.getItem('users')) || {};
+            const userCurrency = JSON.parse(localStorage.getItem('userCurrency') || '{}');
+            const list = document.getElementById('userList');
+            list.innerHTML = '';
+            Object.keys(users).forEach(user => {
+                const div = document.createElement('div');
+                div.innerHTML = `<span><b>${user}</b></span>
+                    <span>Coins: ${userCurrency[user] || 0}</span>
+                    <button onclick="deleteUserQuick('${user}')">Delete</button>
+                    <button onclick="promptChangePassword('${user}')">Change Password</button>
+                    <button onclick="giveCoinsQuick('${user}')">+100 Coins</button>`;
+                list.appendChild(div);
+            });
+        }
+
+        function deleteUserQuick(user) {
+            if (confirm(`Delete user ${user}?`)) {
+                let users = JSON.parse(localStorage.getItem('users')) || {};
+                delete users[user];
+                localStorage.setItem('users', JSON.stringify(users));
+                renderUserList();
+            }
+        }
+
+        function promptChangePassword(user) {
+            const newPass = prompt(`Enter new password for ${user}:`);
+            if (newPass) {
+                let users = JSON.parse(localStorage.getItem('users')) || {};
+                users[user] = newPass;
+                localStorage.setItem('users', JSON.stringify(users));
+                renderUserList();
+            }
+        }
+
+        function giveCoinsQuick(user) {
+            let userCurrency = JSON.parse(localStorage.getItem('userCurrency') || '{}');
+            userCurrency[user] = (userCurrency[user] || 0) + 100;
+            localStorage.setItem('userCurrency', JSON.stringify(userCurrency));
+            renderUserList();
+        }
+
         // Admin authentication
         const ADMIN_PASS = "64083950ADMIN";
         if (sessionStorage.getItem('adminAuthed') === "true") {
             document.getElementById('admin-content').style.display = 'block';
             document.getElementById('admin-login').style.display = 'none';
+            renderUserList();
         }
         function adminLogin() {
             const pass = document.getElementById('adminPass').value;
@@ -101,6 +273,7 @@
                 sessionStorage.setItem('adminAuthed', "true");
                 document.getElementById('admin-content').style.display = 'block';
                 document.getElementById('admin-login').style.display = 'none';
+                renderUserList();
             } else {
                 document.getElementById('adminError').style.display = 'block';
             }

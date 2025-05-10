@@ -287,11 +287,6 @@
                 velocity.y = Math.max(velocity.y, 0);
             }
 
-            // Smooth airplane rotation based on velocity
-            const forwardDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(airplaneGroup.quaternion);
-            const targetRotation = new THREE.Quaternion().setFromUnitVectors(forwardDirection, velocity.clone().normalize());
-            airplaneGroup.quaternion.slerp(targetRotation, 0.1);
-
             // Enemy AI
             updateEnemyAI();
 
@@ -301,8 +296,13 @@
                 const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
                 const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
                 const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-                bullet.position.copy(enemyGroup.position);
-                const directionToPlayer = airplaneGroup.position.clone().sub(enemyGroup.position).normalize();
+
+                // Position the bullet at the front of the enemy airplane
+                const frontOffset = new THREE.Vector3(2.5, 0, 0); // Adjust offset as needed
+                const bulletPosition = frontOffset.applyQuaternion(enemyGroup.quaternion).add(enemyGroup.position);
+                bullet.position.copy(bulletPosition);
+
+                const directionToPlayer = airplaneGroup.position.clone().sub(bullet.position).normalize();
                 bullet.userData = {
                     velocity: directionToPlayer.multiplyScalar(bulletSpeed),
                     time: currentTime

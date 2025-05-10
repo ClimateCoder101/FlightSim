@@ -78,6 +78,7 @@
     </div>
     <div id="hud">
         <p>Speed: <span id="speed">0</span> m/s</p>
+        <p>Altitude: <span id="altitude">0</span> m</p>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
@@ -206,6 +207,8 @@
 
             // Update HUD
             document.getElementById('speed').textContent = (velocity.length() * 100).toFixed(2);
+            const altitude = airplaneGroup.position.y.toFixed(2);
+            document.getElementById('altitude').textContent = altitude;
 
             // Update camera
             const offset = new THREE.Vector3(0, 5, 15);

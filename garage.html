@@ -7,173 +7,363 @@
     <link rel="icon" type="image/svg+xml" href="2.svg">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background: linear-gradient(to bottom, #87CEEB, #FFFFFF);
+            background: linear-gradient(135deg, #87CEEB 0%, #e0eafc 100%);
+            min-height: 100vh;
         }
-        h1 {
-            margin-top: 5%;
+        header {
+            background: #007BFF;
+            color: white;
+            padding: 24px 0 16px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+        }
+        .coin-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            background: #f5faff;
+            padding: 10px 30px;
+            font-size: 1.2rem;
+            color: #007BFF;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .coin-bar img {
+            width: 28px;
+            height: 28px;
+            margin-right: 8px;
+        }
+        .garage-container {
+            max-width: 900px;
+            margin: 30px auto 0 auto;
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 32px 24px 24px 24px;
+        }
+        .section-title {
+            color: #007BFF;
+            margin-bottom: 12px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #007BFF;
+            display: inline-block;
+            padding-bottom: 4px;
+        }
+        .items-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+        .item-card {
+            background: #f7faff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 18px 16px;
+            flex: 1 1 260px;
+            min-width: 220px;
+            max-width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+        }
+        .item-card.selected {
+            border: 2px solid #28a745;
+            background: #eaffea;
+        }
+        .item-card .item-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 6px;
             color: #333;
         }
-        .garage {
-            margin: 20px auto;
-            max-width: 800px;
-            text-align: left;
+        .item-card .item-desc {
+            font-size: 0.98rem;
+            color: #555;
+            margin-bottom: 10px;
         }
-        .garage-section {
-            margin-bottom: 30px;
-        }
-        .garage-section h2 {
+        .item-card .item-cost {
+            font-size: 1rem;
             color: #007BFF;
             margin-bottom: 10px;
         }
-        .garage-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #f9f9f9;
-            margin: 10px 0;
-            padding: 10px 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .garage-item p {
-            margin: 0;
-            font-size: 16px;
-            color: #333;
-        }
-        .garage-item button {
-            padding: 5px 10px;
-            font-size: 14px;
-            color: white;
-            background-color: #007BFF;
+        .item-card button {
+            align-self: flex-end;
+            padding: 7px 18px;
+            font-size: 1rem;
             border: none;
             border-radius: 5px;
-            cursor: pointer;
-        }
-        .garage-item button:hover {
-            background-color: #0056b3;
-        }
-        a {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 18px;
+            background: linear-gradient(90deg, #007BFF 60%, #0056b3 100%);
             color: white;
-            background-color: #007BFF;
-            text-decoration: none;
-            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
         }
-        a:hover {
-            background-color: #0056b3;
+        .item-card button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .item-card button:hover:not(:disabled) {
+            background: linear-gradient(90deg, #0056b3 60%, #007BFF 100%);
+            transform: scale(1.07);
+        }
+        .owned-section {
+            margin-top: 30px;
+        }
+        .owned-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .owned-section li {
+            background: #e0f7fa;
+            color: #007BFF;
+            border-radius: 5px;
+            padding: 6px 14px;
+            font-size: 1rem;
+        }
+        .back-link {
+            display: block;
+            margin: 40px auto 0 auto;
+            width: fit-content;
+            padding: 12px 28px;
+            font-size: 1.1rem;
+            color: white;
+            background: linear-gradient(90deg, #007BFF 60%, #0056b3 100%);
+            border-radius: 8px;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .back-link:hover {
+            background: linear-gradient(90deg, #0056b3 60%, #007BFF 100%);
+            transform: scale(1.07);
+        }
+        @media (max-width: 700px) {
+            .garage-container {
+                padding: 14px 4px 14px 4px;
+            }
+            .items-list {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Garage</h1>
-    <div class="garage">
-        <div class="garage-section">
-            <h2>Planes</h2>
-            <div class="garage-item">
-                <p><strong>Basic Plane</strong> - A reliable starter plane. (Free)</p>
-                <button onclick="selectPlane('basic')">Select</button>
-            </div>
-            <div class="garage-item">
-                <p><strong>Speedy Plane</strong> - +50 SPEED. (100 Coins)</p>
-                <button onclick="selectPlane('speedy')">Buy/Select</button>
-            </div>
-            <div class="garage-item">
-                <p><strong>Armored Plane</strong> - 2x Life. (200 Coins)</p>
-                <button onclick="selectPlane('armored')">Buy/Select</button>
-            </div>
+    <header>
+        <h1>Garage</h1>
+    </header>
+    <div class="coin-bar">
+        <img src="https://cdn-icons-png.flaticon.com/512/138/138292.png" alt="Coins">
+        <span id="coinBalance">0</span> Coins
+    </div>
+    <div class="garage-container">
+        <div>
+            <span class="section-title">Planes</span>
+            <div class="items-list" id="planesList"></div>
         </div>
-        <div class="garage-section">
-            <h2>Upgrades</h2>
-            <div class="garage-item">
-                <p><strong>+50 SPEED</strong> - Boost your plane's speed. (100 Coins)</p>
-                <button onclick="buyUpgrade('speed')">Buy</button>
-            </div>
-            <div class="garage-item">
-                <p><strong>+1 ARMOR</strong> - Absorb one extra hit. (200 Coins)</p>
-                <button onclick="buyUpgrade('armor')">Buy</button>
-            </div>
-            <div class="garage-item">
-                <p><strong>STEALTH MODE</strong> - Avoid enemy detection. (500 Coins)</p>
-                <button onclick="buyUpgrade('stealth')">Buy</button>
-            </div>
-            <div class="garage-item">
-                <p><strong>TURBO BOOST</strong> - Temporary speed boost. (1000 Coins)</p>
-                <button onclick="buyUpgrade('turbo')">Buy</button>
-            </div>
+        <div>
+            <span class="section-title">Upgrades</span>
+            <div class="items-list" id="upgradesList"></div>
         </div>
-        <div class="garage-section">
-            <h2>Owned Items</h2>
-            <p><strong>Planes:</strong> <span id="ownedPlanesList">None</span></p>
-            <p><strong>Upgrades:</strong> <span id="ownedUpgradesList">None</span></p>
+        <div class="owned-section">
+            <span class="section-title">Owned Planes</span>
+            <ul id="ownedPlanesList"></ul>
+            <span class="section-title" style="margin-left:24px;">Owned Upgrades</span>
+            <ul id="ownedUpgradesList"></ul>
         </div>
     </div>
-    <a href="/index.html">Back to Homepage</a>
+    <a class="back-link" href="/index.html">Back to Homepage</a>
     <script>
+        // Data
+        const planes = [
+            {
+                key: 'basic',
+                name: 'Basic Plane',
+                desc: 'A reliable starter plane.',
+                cost: 0
+            },
+            {
+                key: 'speedy',
+                name: 'Speedy Plane',
+                desc: '+50 SPEED.',
+                cost: 100
+            },
+            {
+                key: 'armored',
+                name: 'Armored Plane',
+                desc: '2x Life.',
+                cost: 200
+            }
+        ];
+        const upgrades = [
+            {
+                key: 'speed',
+                name: '+50 SPEED',
+                desc: 'Boost your plane\'s speed.',
+                cost: 100
+            },
+            {
+                key: 'armor',
+                name: '+1 ARMOR',
+                desc: 'Absorb one extra hit.',
+                cost: 200
+            },
+            {
+                key: 'stealth',
+                name: 'STEALTH MODE',
+                desc: 'Avoid enemy detection.',
+                cost: 500
+            },
+            {
+                key: 'turbo',
+                name: 'TURBO BOOST',
+                desc: 'Temporary speed boost.',
+                cost: 1000
+            }
+        ];
+
+        // State
         let currency = parseInt(localStorage.getItem('currency')) || 0;
         let ownedPlanes = JSON.parse(localStorage.getItem('ownedPlanes')) || ['basic'];
         let ownedUpgrades = JSON.parse(localStorage.getItem('ownedUpgrades')) || [];
+        let selectedPlane = localStorage.getItem('selectedPlane') || 'basic';
 
-        document.getElementById('ownedPlanesList').textContent = ownedPlanes.join(', ');
-        document.getElementById('ownedUpgradesList').textContent = ownedUpgrades.join(', ');
+        // DOM
+        document.getElementById('coinBalance').textContent = currency;
 
-        function selectPlane(plane) {
-            const planeCosts = {
-                basic: 0,
-                speedy: 100,
-                armored: 200
-            };
-
-            if (ownedPlanes.includes(plane)) {
-                alert(`${capitalize(plane)} Plane selected!`);
-                localStorage.setItem('selectedPlane', plane);
-            } else if (currency >= planeCosts[plane]) {
-                alert(`${capitalize(plane)} Plane purchased and selected!`);
-                ownedPlanes.push(plane);
-                currency -= planeCosts[plane];
-                updateGarage();
-            } else {
-                alert('Not enough coins!');
-            }
+        function renderPlanes() {
+            const planesList = document.getElementById('planesList');
+            planesList.innerHTML = '';
+            planes.forEach(plane => {
+                const card = document.createElement('div');
+                card.className = 'item-card' + (selectedPlane === plane.key ? ' selected' : '');
+                card.innerHTML = `
+                    <div class="item-title">${plane.name}</div>
+                    <div class="item-desc">${plane.desc}</div>
+                    <div class="item-cost">${plane.cost === 0 ? 'Free' : plane.cost + ' Coins'}</div>
+                    <button ${ownedPlanes.includes(plane.key) ? '' : (currency < plane.cost ? 'disabled' : '')}>
+                        ${ownedPlanes.includes(plane.key) ? (selectedPlane === plane.key ? 'Selected' : 'Select') : 'Buy'}
+                    </button>
+                `;
+                card.querySelector('button').onclick = () => {
+                    if (ownedPlanes.includes(plane.key)) {
+                        selectedPlane = plane.key;
+                        localStorage.setItem('selectedPlane', plane.key);
+                        renderPlanes();
+                        showToast(`${plane.name} selected!`);
+                    } else if (currency >= plane.cost) {
+                        ownedPlanes.push(plane.key);
+                        currency -= plane.cost;
+                        selectedPlane = plane.key;
+                        localStorage.setItem('selectedPlane', plane.key);
+                        updateStorage();
+                        renderPlanes();
+                        renderOwned();
+                        updateCoins();
+                        showToast(`${plane.name} purchased and selected!`);
+                    }
+                };
+                planesList.appendChild(card);
+            });
         }
 
-        function buyUpgrade(upgrade) {
-            const upgradeCosts = {
-                speed: 100,
-                armor: 200,
-                stealth: 500,
-                turbo: 1000
-            };
-
-            if (ownedUpgrades.includes(upgrade)) {
-                alert(`You already own the ${capitalize(upgrade)} upgrade!`);
-            } else if (currency >= upgradeCosts[upgrade]) {
-                alert(`${capitalize(upgrade)} upgrade purchased!`);
-                ownedUpgrades.push(upgrade);
-                currency -= upgradeCosts[upgrade];
-                updateGarage();
-            } else {
-                alert('Not enough coins!');
-            }
+        function renderUpgrades() {
+            const upgradesList = document.getElementById('upgradesList');
+            upgradesList.innerHTML = '';
+            upgrades.forEach(upg => {
+                const card = document.createElement('div');
+                card.className = 'item-card' + (ownedUpgrades.includes(upg.key) ? ' selected' : '');
+                card.innerHTML = `
+                    <div class="item-title">${upg.name}</div>
+                    <div class="item-desc">${upg.desc}</div>
+                    <div class="item-cost">${upg.cost} Coins</div>
+                    <button ${ownedUpgrades.includes(upg.key) ? 'disabled' : (currency < upg.cost ? 'disabled' : '')}>
+                        ${ownedUpgrades.includes(upg.key) ? 'Owned' : 'Buy'}
+                    </button>
+                `;
+                card.querySelector('button').onclick = () => {
+                    if (!ownedUpgrades.includes(upg.key) && currency >= upg.cost) {
+                        ownedUpgrades.push(upg.key);
+                        currency -= upg.cost;
+                        updateStorage();
+                        renderUpgrades();
+                        renderOwned();
+                        updateCoins();
+                        showToast(`${upg.name} upgrade purchased!`);
+                    }
+                };
+                upgradesList.appendChild(card);
+            });
         }
 
-        function updateGarage() {
+        function renderOwned() {
+            const planesList = document.getElementById('ownedPlanesList');
+            planesList.innerHTML = '';
+            ownedPlanes.forEach(plane => {
+                const li = document.createElement('li');
+                li.textContent = planes.find(p => p.key === plane)?.name || plane;
+                planesList.appendChild(li);
+            });
+            const upgradesList = document.getElementById('ownedUpgradesList');
+            upgradesList.innerHTML = '';
+            ownedUpgrades.forEach(upg => {
+                const li = document.createElement('li');
+                li.textContent = upgrades.find(u => u.key === upg)?.name || upg;
+                upgradesList.appendChild(li);
+            });
+        }
+
+        function updateCoins() {
+            document.getElementById('coinBalance').textContent = currency;
+        }
+
+        function updateStorage() {
             localStorage.setItem('currency', currency);
             localStorage.setItem('ownedPlanes', JSON.stringify(ownedPlanes));
             localStorage.setItem('ownedUpgrades', JSON.stringify(ownedUpgrades));
-            document.getElementById('ownedPlanesList').textContent = ownedPlanes.join(', ');
-            document.getElementById('ownedUpgradesList').textContent = ownedUpgrades.join(', ');
+            localStorage.setItem('selectedPlane', selectedPlane);
         }
 
-        function capitalize(str) {
-            return str.charAt(0).toUpperCase() + str.slice(1);
+        // Toast notification
+        function showToast(msg) {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.style.position = 'fixed';
+                toast.style.bottom = '30px';
+                toast.style.left = '50%';
+                toast.style.transform = 'translateX(-50%)';
+                toast.style.background = '#007BFF';
+                toast.style.color = 'white';
+                toast.style.padding = '14px 28px';
+                toast.style.borderRadius = '8px';
+                toast.style.fontSize = '1.1rem';
+                toast.style.zIndex = 9999;
+                toast.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.style.opacity = 1;
+            setTimeout(() => { toast.style.opacity = 0; }, 1800);
         }
+
+        // Initial render
+        renderPlanes();
+        renderUpgrades();
+        renderOwned();
+        updateCoins();
     </script>
 </body>
 </html>

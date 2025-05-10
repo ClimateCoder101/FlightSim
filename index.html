@@ -69,6 +69,7 @@
         <a href="/settings.html">SETTINGS</a>
         <a href="/tutorial.html">HOW TO PLAY</a>
         <a href="/pro.html">PRO</a>
+        <a href="#" onclick="accessAdmin()">ADMIN</a>
     </div>
     <script>
         const users = JSON.parse(localStorage.getItem('users')) || {};
@@ -104,6 +105,15 @@
         function showMainContent() {
             document.getElementById('auth-container').style.display = 'none';
             document.getElementById('main-content').style.display = 'block';
+        }
+
+        function accessAdmin() {
+            const adminCode = prompt("Enter Admin Code:");
+            if (adminCode === "admin123") { // Replace "admin123" with your desired admin code
+                window.location.href = "/admin.html";
+            } else {
+                alert("Invalid Admin Code!");
+            }
         }
 
         // Auto sign-in if already logged in

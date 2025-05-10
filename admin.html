@@ -132,6 +132,17 @@
             <div id="changeMsg"></div>
         </div>
         <div class="admin-section">
+            <h2>Set User Role</h2>
+            <input type="text" id="roleUser" placeholder="Username">
+            <select id="roleSelect">
+                <option value="user">User</option>
+                <option value="mod">Mod</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button onclick="setUserRole()">Set Role</button>
+            <div id="roleMsg"></div>
+        </div>
+        <div class="admin-section">
             <h2>All Users</h2>
             <div class="user-list" id="userList"></div>
         </div>
@@ -139,9 +150,10 @@
     </div>
     <div id="admin-login" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
         <h2>Admin Login</h2>
+        <input type="text" id="adminUser" placeholder="Enter Admin Username" style="padding:10px; font-size:16px; margin-bottom:10px;">
         <input type="password" id="adminPass" placeholder="Enter Admin Password" style="padding:10px; font-size:16px; margin-bottom:10px;">
         <button onclick="adminLogin()" style="padding:10px 20px; font-size:16px;">Login</button>
-        <p id="adminError" style="color:red; margin-top:10px; display:none;">Incorrect password.</p>
+        <p id="adminError" style="color:red; margin-top:10px; display:none;">Incorrect username or password.</p>
     </div>
     <script>
         function resetCurrency() {
@@ -217,19 +229,49 @@
             }
         }
 
-        // Render all users with quick actions
+        // User roles management
+        function getRoles() {
+            return JSON.parse(localStorage.getItem('roles') || '{}');
+        }
+        function setRoles(roles) {
+            localStorage.setItem('roles', JSON.stringify(roles));
+        }
+
+        function setUserRole() {
+            const user = document.getElementById('roleUser').value.trim();
+            const role = document.getElementById('roleSelect').value;
+            const msg = document.getElementById('roleMsg');
+            let users = JSON.parse(localStorage.getItem('users')) || {};
+            if (!users[user]) {
+                msg.textContent = "User not found.";
+                msg.className = "error-msg";
+                return;
+            }
+            let roles = getRoles();
+            roles[user] = role;
+            setRoles(roles);
+            msg.textContent = `Role for ${user} set to ${role}.`;
+            msg.className = "success-msg";
+            renderUserList();
+        }
+
+        // Render all users with roles
         function renderUserList() {
             const users = JSON.parse(localStorage.getItem('users')) || {};
             const userCurrency = JSON.parse(localStorage.getItem('userCurrency') || '{}');
+            const roles = getRoles();
             const list = document.getElementById('userList');
             list.innerHTML = '';
             Object.keys(users).forEach(user => {
                 const div = document.createElement('div');
+                const role = roles[user] || 'user';
                 div.innerHTML = `<span><b>${user}</b></span>
                     <span>Coins: ${userCurrency[user] || 0}</span>
+                    <span>Role: <b>${role}</b></span>
                     <button onclick="deleteUserQuick('${user}')">Delete</button>
                     <button onclick="promptChangePassword('${user}')">Change Password</button>
-                    <button onclick="giveCoinsQuick('${user}')">+100 Coins</button>`;
+                    <button onclick="giveCoinsQuick('${user}')">+100 Coins</button>
+                    <button onclick="quickSetRole('${user}')">Set Role</button>`;
                 list.appendChild(div);
             });
         }
@@ -260,16 +302,30 @@
             renderUserList();
         }
 
-        // Admin authentication
-        const ADMIN_PASS = "64083950ADMIN";
+        function quickSetRole(user) {
+            const newRole = prompt("Set role for " + user + " (user/mod/admin):", (getRoles()[user] || 'user'));
+            if (newRole === "user" || newRole === "mod" || newRole === "admin") {
+                let roles = getRoles();
+                roles[user] = newRole;
+                setRoles(roles);
+                renderUserList();
+            }
+        }
+
+        // Admin authentication: Only allow TEST/64083950ADMIN
+        function isAdminUser(username, password) {
+            return username === "TEST" && password === "64083950ADMIN";
+        }
+
         if (sessionStorage.getItem('adminAuthed') === "true") {
             document.getElementById('admin-content').style.display = 'block';
             document.getElementById('admin-login').style.display = 'none';
             renderUserList();
         }
         function adminLogin() {
+            const user = document.getElementById('adminUser').value.trim();
             const pass = document.getElementById('adminPass').value;
-            if (pass === ADMIN_PASS) {
+            if (isAdminUser(user, pass)) {
                 sessionStorage.setItem('adminAuthed', "true");
                 document.getElementById('admin-content').style.display = 'block';
                 document.getElementById('admin-login').style.display = 'none';

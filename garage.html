@@ -47,33 +47,60 @@
         a:hover {
             background-color: #0056b3;
         }
+        .owned-planes {
+            margin: 20px 0;
+        }
+        .owned-planes ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .owned-planes li {
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
     <h1>Garage</h1>
     <div class="garage">
+        <h2>Garage</h2>
+        <p>Coins: <span id="coinBalance">0</span></p>
         <button onclick="selectPlane('basic')">Basic Plane (Free)</button>
         <button onclick="selectPlane('speedy')">Speedy Plane (100 Coins)</button>
         <button onclick="selectPlane('armored')">Armored Plane (200 Coins)</button>
     </div>
+    <div class="owned-planes">
+        <h3>Owned Planes</h3>
+        <ul id="ownedPlanesList"></ul>
+    </div>
     <a href="/index.html">Back to Homepage</a>
     <script>
         let currency = parseInt(localStorage.getItem('currency')) || 0;
+        let ownedPlanes = JSON.parse(localStorage.getItem('ownedPlanes')) || ['basic'];
+
+        document.getElementById('coinBalance').textContent = currency;
+        updateOwnedPlanesList();
 
         function selectPlane(plane) {
             if (plane === 'basic') {
                 alert('Basic Plane selected!');
                 localStorage.setItem('selectedPlane', 'basic');
-            } else if (plane === 'speedy' && currency >= 100) {
-                alert('Speedy Plane selected!');
+            } else if (plane === 'speedy' && currency >= 100 && !ownedPlanes.includes('speedy')) {
+                alert('Speedy Plane purchased and selected!');
                 localStorage.setItem('selectedPlane', 'speedy');
                 currency -= 100;
+                ownedPlanes.push('speedy');
                 updateCurrency();
-            } else if (plane === 'armored' && currency >= 200) {
-                alert('Armored Plane selected!');
+                updateOwnedPlanesList();
+            } else if (plane === 'armored' && currency >= 200 && !ownedPlanes.includes('armored')) {
+                alert('Armored Plane purchased and selected!');
                 localStorage.setItem('selectedPlane', 'armored');
                 currency -= 200;
+                ownedPlanes.push('armored');
                 updateCurrency();
+                updateOwnedPlanesList();
+            } else if (ownedPlanes.includes(plane)) {
+                alert(`${capitalize(plane)} Plane selected!`);
+                localStorage.setItem('selectedPlane', plane);
             } else {
                 alert('Not enough coins!');
             }
@@ -81,6 +108,22 @@
 
         function updateCurrency() {
             localStorage.setItem('currency', currency);
+            document.getElementById('coinBalance').textContent = currency;
+        }
+
+        function updateOwnedPlanesList() {
+            localStorage.setItem('ownedPlanes', JSON.stringify(ownedPlanes));
+            const list = document.getElementById('ownedPlanesList');
+            list.innerHTML = '';
+            ownedPlanes.forEach(plane => {
+                const listItem = document.createElement('li');
+                listItem.textContent = capitalize(plane) + ' Plane';
+                list.appendChild(listItem);
+            });
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
         }
     </script>
 </body>

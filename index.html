@@ -5,107 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FlyToday</title>
     <link rel="icon" type="image/svg+xml" href="2.svg">
-    <link rel="stylesheet" href="/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #87CEEB, #FFFFFF);
+        }
+        h1 {
+            margin-top: 5%;
+            color: #333;
+        }
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            color: white;
+            background-color: #007BFF;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        a:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Welcome to FlyToday</h1>
-    </header>
-    <main>
-        <section id="auth-container" class="auth-container">
-            <input type="text" id="username" placeholder="Enter Username">
-            <input type="password" id="password" placeholder="Enter Password">
-            <button onclick="signIn()">Sign In</button>
-            <button onclick="signUp()">Sign Up</button>
-        </section>
-        <section id="main-content" class="main-content" style="display: none;">
-            <a href="/game.html">PLAYER VS COMPUTER</a>
-            <a href="/multiplayer.html">MULTIPLAYER</a>
-            <a href="/free.html">FREE PLAY</a>
-            <a href="/garage.html">GARAGE</a>
-            <a href="/settings.html">SETTINGS</a>
-            <a href="/tutorial.html">HOW TO PLAY</a>
-            <a href="/pro.html">PRO</a>
-            <a href="#" onclick="accessAdmin()">ADMIN</a>
-            <a href="#" onclick="logout()">LOGOUT</a>
-        </section>
-        <section id="features" class="features">
-            <h2>Why Choose FlyToday?</h2>
-            <ul>
-                <li>Realistic flight dynamics and terrain.</li>
-                <li>Multiplayer mode to compete with friends.</li>
-                <li>Customizable airplanes and exclusive maps.</li>
-                <li>Earn coins and unlock new features.</li>
-            </ul>
-        </section>
-        <section id="about" class="about">
-            <h2>About FlyToday</h2>
-            <p>
-                FlyToday is the ultimate flight simulator experience. Whether you're a beginner or a pro, 
-                FlyToday offers a range of features to keep you engaged. Explore terrains, compete in multiplayer, 
-                and customize your airplanes to dominate the skies.
-            </p>
-        </section>
-    </main>
-    <footer>
-        &copy; 2025 FlyToday. All rights reserved.
-    </footer>
-    <script>
-        const users = JSON.parse(localStorage.getItem('users')) || {};
-
-        function signIn() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            if (users[username] && users[username] === password) {
-                alert('Sign-in successful!');
-                localStorage.setItem('currentUser', username);
-                showMainContent();
-            } else {
-                alert('Invalid username or password!');
-            }
-        }
-
-        function signUp() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            if (username && password) {
-                if (users[username]) {
-                    alert('Username already exists!');
-                } else {
-                    users[username] = password;
-                    localStorage.setItem('users', JSON.stringify(users));
-                    alert('Sign-up successful! You can now sign in.');
-                }
-            } else {
-                alert('Please enter a valid username and password!');
-            }
-        }
-
-        function showMainContent() {
-            document.getElementById('auth-container').style.display = 'none';
-            document.getElementById('main-content').style.display = 'flex';
-        }
-
-        function accessAdmin() {
-            const adminCode = prompt("Enter Admin Code:");
-            if (adminCode === "64083950ADMIN") { 
-                window.location.href = "/admin.html";
-            } else {
-                alert("Invalid Admin Code!");
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('currentUser');
-            alert('You have been logged out.');
-            location.reload(); // Reload the page to show the sign-in/sign-up form
-        }
-
-        // Auto sign-in if already logged in
-        const currentUser = localStorage.getItem('currentUser');
-        if (currentUser) {
-            showMainContent();
-        }
-    </script>
+    <h1>Welcome to FlyToday</h1>
+    <a href="/game.html">PLAYER VS COMPUTER</a>
+    <a href="/multiplayer.html">MULTIPLAYER</a>
+    <a href="/free.html">FREE PLAY</a>
+    <a href="/garage.html">GARAGE</a>
+    <a href="/settings.html">SETTINGS</a>
+    <a href="/tutorial.html">HOW TO PLAY</a>
+    <a href="/pro.html">PRO</a>
 </body>
 </html>

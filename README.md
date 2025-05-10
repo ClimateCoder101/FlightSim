@@ -1,4 +1,4 @@
-# FlyToday - Flight Simulator
+# FlyToday - Flight Simulator 
 
 Welcome to **FlyToday**, a realistic flight simulator game built with **HTML**, **CSS**, and **JavaScript** using the **Three.js** library. This project allows players to control an airplane, engage in combat with enemy planes, and navigate through a dynamic 3D environment.
 

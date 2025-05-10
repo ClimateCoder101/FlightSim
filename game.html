@@ -81,6 +81,17 @@
         <p>Currency: <span id="currency">0</span> Coins</p>
         <p>Speed: <span id="speed">0</span> m/s</p>
         <p>Altitude: <span id="altitude">0</span> m</p>
+        <div id="healthBarContainer" style="margin-top:10px;">
+            <label style="color:#fff;">Health:</label>
+            <div style="background:#444; border-radius:6px; width:120px; height:16px; display:inline-block; vertical-align:middle;">
+                <div id="healthBar" style="background:#28a745; height:16px; border-radius:6px; width:100%;"></div>
+            </div>
+            <span id="healthValue" style="color:#fff; margin-left:6px;">100</span>
+        </div>
+        <div id="missionTracker" style="margin-top:10px; color:#fff;">
+            <strong>Mission:</strong> <span id="missionText">Destroy the enemy plane!</span>
+        </div>
+        <canvas id="minimap" width="120" height="120" style="margin-top:10px; background:rgba(0,0,0,0.5); border-radius:8px; border:1px solid #fff;"></canvas>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
@@ -445,6 +456,12 @@
             return vertices[index] - 50;
         }
 
+        // Health bar state
+        let playerMaxHealth = 100;
+        let playerHealth = playerMaxHealth;
+        let enemyMaxHealth = 100;
+        let enemyHealth = enemyMaxHealth;
+
         function updateFlightDynamics() {
             // Player movement
             let acc = new THREE.Vector3(0, 0, 0);
@@ -505,14 +522,26 @@
                 const bullet = bullets[i];
                 bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
                 if (bullet.position.distanceTo(enemyGroup.position) < 2) {
-                    currency += 50; // Reward 50 coins for defeating an enemy
-                    localStorage.setItem('currency', currency);
-                    document.getElementById('currency').textContent = currency;
-                    createExplosion(enemyGroup.position.clone());
-                    triggerCameraShake();
+                    // Damage enemy
+                    enemyHealth -= 50;
+                    if (enemyHealth <= 0) {
+                        currency += 50;
+                        localStorage.setItem('currency', currency);
+                        document.getElementById('currency').textContent = currency;
+                        createExplosion(enemyGroup.position.clone());
+                        triggerCameraShake();
+                        scene.remove(bullet);
+                        bullets.splice(i, 1);
+                        enemyGroup.position.copy(waypoints[Math.floor(Math.random() * waypoints.length)]);
+                        enemyHealth = enemyMaxHealth;
+                        document.getElementById('missionText').textContent = "Enemy destroyed! New enemy incoming!";
+                        setTimeout(() => {
+                            document.getElementById('missionText').textContent = "Destroy the enemy plane!";
+                        }, 2000);
+                        continue;
+                    }
                     scene.remove(bullet);
                     bullets.splice(i, 1);
-                    enemyGroup.position.copy(waypoints[Math.floor(Math.random() * waypoints.length)]); // Respawn
                     continue;
                 }
                 if (currentTime - bullet.userData.time > bulletLifetime) {
@@ -527,12 +556,23 @@
                 bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
                 if (bullet.position.distanceTo(airplaneGroup.position) < 2) {
                     if (armor > 0) {
-                        armor--; // Reduce armor instead of deducting coins
+                        armor--;
                         alert('Armor absorbed the hit!');
                     } else {
-                        currency = Math.max(0, currency - 10); // Deduct coins if no armor
-                        localStorage.setItem('currency', currency);
-                        document.getElementById('currency').textContent = currency;
+                        playerHealth -= 25;
+                        if (playerHealth <= 0) {
+                            playerHealth = playerMaxHealth;
+                            currency = Math.max(0, currency - 10);
+                            localStorage.setItem('currency', currency);
+                            document.getElementById('currency').textContent = currency;
+                            document.getElementById('missionText').textContent = "You were shot down! Respawning...";
+                            setTimeout(() => {
+                                document.getElementById('missionText').textContent = "Destroy the enemy plane!";
+                            }, 2000);
+                            // Respawn player at start
+                            airplaneGroup.position.set(0, 5, 15);
+                            velocity.set(0, 0, 0);
+                        }
                     }
                     createExplosion(airplaneGroup.position.clone());
                     triggerCameraShake();
@@ -552,6 +592,13 @@
             const altitude = airplaneGroup.position.y.toFixed(2);
             document.getElementById('altitude').textContent = altitude;
 
+            // Update health bar
+            document.getElementById('healthBar').style.width = (playerHealth / playerMaxHealth * 100) + "%";
+            document.getElementById('healthValue').textContent = playerHealth;
+
+            // Update minimap
+            updateMinimap();
+
             // Update camera
             const offset = new THREE.Vector3(0, 5, 15);
             camera.position.copy(airplaneGroup.position).add(offset);
@@ -559,6 +606,36 @@
 
             // Visuals
             updateCameraEffects();
+        }
+
+        // Mini-map rendering
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw terrain bounds
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(10, 10, 100, 100);
+
+            // Player position (centered)
+            const px = (airplaneGroup.position.x / terrainSize) * 50 + 60;
+            const pz = (airplaneGroup.position.z / terrainSize) * 50 + 60;
+            ctx.fillStyle = "#00ff00";
+            ctx.beginPath();
+            ctx.arc(px, pz, 6, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Enemy position
+            const ex = (enemyGroup.position.x / terrainSize) * 50 + 60;
+            const ez = (enemyGroup.position.z / terrainSize) * 50 + 60;
+            ctx.fillStyle = "#ff0000";
+            ctx.beginPath();
+            ctx.arc(ex, ez, 6, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Optionally: draw waypoints or other objects
         }
 
         // Animation loop

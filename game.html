@@ -108,7 +108,7 @@
         const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
         scene.add(skybox);
 
-        // Terrain with Perlin noise
+        // Advanced Terrain: Add rivers, mountains, forests
         const terrainSize = 1000;
         const terrainSegments = 100;
         const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
@@ -117,7 +117,12 @@
         for (let i = 0; i < vertices.length; i += 3) {
             const x = vertices[i];
             const z = vertices[i + 1];
-            const height = noise.noise2D(x / 100, z / 100) * 20;
+            // Mountains
+            let height = noise.noise2D(x / 100, z / 100) * 20;
+            // Add river (simple sine wave river)
+            if (Math.abs(z - 100 * Math.sin(x / 150)) < 10) height -= 10;
+            // Add forest (random bumps)
+            if (noise.noise2D(x / 30, z / 30) > 0.5) height += Math.random() * 2;
             vertices[i + 2] = height;
         }
         terrainGeometry.computeVertexNormals();
@@ -130,6 +135,171 @@
         terrain.rotation.x = -Math.PI / 2;
         terrain.position.y = -50;
         scene.add(terrain);
+
+        // Forests: add simple tree models
+        for (let i = 0; i < 100; i++) {
+            const tree = new THREE.Group();
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.2, 2),
+                new THREE.MeshStandardMaterial({ color: 0x8B4513 })
+            );
+            trunk.position.y = 1;
+            tree.add(trunk);
+            const leaves = new THREE.Mesh(
+                new THREE.SphereGeometry(0.8, 8, 8),
+                new THREE.MeshStandardMaterial({ color: 0x228B22 })
+            );
+            leaves.position.y = 2.2;
+            tree.add(leaves);
+            // Place trees randomly, but not in the river
+            let x, z;
+            do {
+                x = Math.random() * terrainSize - terrainSize / 2;
+                z = Math.random() * terrainSize - terrainSize / 2;
+            } while (Math.abs(z - 100 * Math.sin(x / 150)) < 15);
+            tree.position.set(x, getTerrainHeight(x, z) + 1, z);
+            scene.add(tree);
+        }
+
+        // Dynamic Sky: Day-night cycle, fog, and weather
+        let skyColorDay = new THREE.Color(0x87CEEB);
+        let skyColorNight = new THREE.Color(0x0a0a2a);
+        let skyColorSunset = new THREE.Color(0xffcc99);
+        let skyPhase = 0; // 0 to 1, 0=day, 0.5=sunset, 1=night
+        let weather = "clear"; // "clear", "rain", "fog"
+        let weatherTimer = 0;
+
+        function updateSkyAndWeather(delta) {
+            // Day-night cycle
+            skyPhase += delta * 0.01;
+            if (skyPhase > 1) skyPhase = 0;
+            let color;
+            if (skyPhase < 0.4) color = skyColorDay.clone().lerp(skyColorSunset, skyPhase / 0.4);
+            else if (skyPhase < 0.6) color = skyColorSunset.clone().lerp(skyColorNight, (skyPhase - 0.4) / 0.2);
+            else color = skyColorNight.clone().lerp(skyColorDay, (skyPhase - 0.6) / 0.4);
+            renderer.setClearColor(color);
+
+            // Weather change every 30s
+            weatherTimer += delta;
+            if (weatherTimer > 30) {
+                weatherTimer = 0;
+                const r = Math.random();
+                if (r < 0.5) weather = "clear";
+                else if (r < 0.8) weather = "fog";
+                else weather = "rain";
+            }
+            // Fog
+            if (weather === "fog") {
+                scene.fog = new THREE.Fog(color, 30, 120);
+            } else {
+                scene.fog = null;
+            }
+            // Rain: add rain particles
+            if (weather === "rain") {
+                if (!scene.getObjectByName("rain")) {
+                    const rainGeo = new THREE.BufferGeometry();
+                    const rainCount = 500;
+                    const rainPositions = new Float32Array(rainCount * 3);
+                    for (let i = 0; i < rainCount; i++) {
+                        rainPositions[i * 3] = Math.random() * 200 - 100;
+                        rainPositions[i * 3 + 1] = Math.random() * 80 + 10;
+                        rainPositions[i * 3 + 2] = Math.random() * 200 - 100;
+                    }
+                    rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+                    const rainMat = new THREE.PointsMaterial({ color: 0x66aaff, size: 0.5, transparent: true });
+                    const rain = new THREE.Points(rainGeo, rainMat);
+                    rain.name = "rain";
+                    scene.add(rain);
+                }
+                // Animate rain
+                const rain = scene.getObjectByName("rain");
+                if (rain) {
+                    const pos = rain.geometry.attributes.position;
+                    for (let i = 0; i < pos.count; i++) {
+                        pos.array[i * 3 + 1] -= 1;
+                        if (pos.array[i * 3 + 1] < 0) pos.array[i * 3 + 1] = Math.random() * 80 + 10;
+                    }
+                    pos.needsUpdate = true;
+                }
+            } else {
+                const rain = scene.getObjectByName("rain");
+                if (rain) scene.remove(rain);
+            }
+        }
+
+        // Particle Effects: Explosions, smoke trails
+        function createExplosion(position) {
+            const group = new THREE.Group();
+            for (let i = 0; i < 20; i++) {
+                const particle = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0xffaa00 })
+                );
+                particle.position.copy(position);
+                group.add(particle);
+                // Animate outward
+                const dir = new THREE.Vector3(
+                    Math.random() - 0.5,
+                    Math.random() - 0.5,
+                    Math.random() - 0.5
+                ).normalize().multiplyScalar(Math.random() * 2 + 1);
+                particle.userData = { dir, start: performance.now() / 1000 };
+            }
+            group.name = "explosion";
+            scene.add(group);
+            setTimeout(() => scene.remove(group), 800);
+        }
+
+        // Smoke trail for player
+        const smokeParticles = [];
+        function addSmokeTrail() {
+            const smoke = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 6, 6),
+                new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 })
+            );
+            smoke.position.copy(airplaneGroup.position);
+            scene.add(smoke);
+            smokeParticles.push({ mesh: smoke, time: performance.now() / 1000 });
+        }
+        function updateSmokeTrail() {
+            const now = performance.now() / 1000;
+            for (let i = smokeParticles.length - 1; i >= 0; i--) {
+                const s = smokeParticles[i];
+                s.mesh.material.opacity -= 0.01;
+                if (now - s.time > 2 || s.mesh.material.opacity <= 0) {
+                    scene.remove(s.mesh);
+                    smokeParticles.splice(i, 1);
+                }
+            }
+        }
+
+        // Camera Effects: Shake and motion blur
+        let cameraShakeTime = 0;
+        function triggerCameraShake() {
+            cameraShakeTime = 0.5;
+        }
+        function updateCameraEffects() {
+            if (cameraShakeTime > 0) {
+                cameraShakeTime -= 0.016;
+                camera.position.x += (Math.random() - 0.5) * 0.5;
+                camera.position.y += (Math.random() - 0.5) * 0.5;
+            }
+            // Simple motion blur: overlay transparent black rectangle
+            if (!document.getElementById('motion-blur')) {
+                const blur = document.createElement('div');
+                blur.id = 'motion-blur';
+                blur.style.position = 'fixed';
+                blur.style.left = 0;
+                blur.style.top = 0;
+                blur.style.width = '100vw';
+                blur.style.height = '100vh';
+                blur.style.pointerEvents = 'none';
+                blur.style.background = 'rgba(0,0,0,0.07)';
+                blur.style.zIndex = 100;
+                document.body.appendChild(blur);
+            }
+            document.getElementById('motion-blur').style.opacity = (velocity.length() > 1.2 ? 1 : 0);
+        }
 
         // Player airplane
         const airplaneGroup = new THREE.Group();
@@ -326,6 +496,10 @@
                 lastEnemyShot = currentTime;
             }
 
+            // Add smoke trail behind player
+            if (velocity.length() > 0.5 && Math.random() < 0.2) addSmokeTrail();
+            updateSmokeTrail();
+
             // Player bullets and currency reward
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const bullet = bullets[i];
@@ -334,6 +508,8 @@
                     currency += 50; // Reward 50 coins for defeating an enemy
                     localStorage.setItem('currency', currency);
                     document.getElementById('currency').textContent = currency;
+                    createExplosion(enemyGroup.position.clone());
+                    triggerCameraShake();
                     scene.remove(bullet);
                     bullets.splice(i, 1);
                     enemyGroup.position.copy(waypoints[Math.floor(Math.random() * waypoints.length)]); // Respawn
@@ -358,6 +534,8 @@
                         localStorage.setItem('currency', currency);
                         document.getElementById('currency').textContent = currency;
                     }
+                    createExplosion(airplaneGroup.position.clone());
+                    triggerCameraShake();
                     scene.remove(bullet);
                     enemyBullets.splice(i, 1);
                     continue;
@@ -378,11 +556,19 @@
             const offset = new THREE.Vector3(0, 5, 15);
             camera.position.copy(airplaneGroup.position).add(offset);
             camera.lookAt(airplaneGroup.position);
+
+            // Visuals
+            updateCameraEffects();
         }
 
         // Animation loop
+        let lastTime = performance.now() / 1000;
         function animate() {
             requestAnimationFrame(animate);
+            const now = performance.now() / 1000;
+            const delta = now - lastTime;
+            lastTime = now;
+            updateSkyAndWeather(delta);
             updateFlightDynamics();
             renderer.render(scene, camera);
         }
@@ -394,6 +580,12 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // Realistic Airplane Models (future): 
+        // Replace the createAirplane code with model loading using THREE.GLTFLoader or similar.
+        // Example: 
+        // const loader = new THREE.GLTFLoader();
+        // loader.load('path/to/model.glb', gltf => { scene.add(gltf.scene); });
     </script>
 </body>
 </html>

@@ -345,6 +345,28 @@
         airplaneGroup.add(vStab);
         scene.add(airplaneGroup);
 
+        // Headlights (spotlight) setup
+        let headlights = null;
+        function updateHeadlights() {
+            // Check if player owns the headlights upgrade
+            const ownedUpgrades = JSON.parse(localStorage.getItem('ownedUpgrades')) || [];
+            if (ownedUpgrades.includes('headlights')) {
+                if (!headlights) {
+                    headlights = new THREE.SpotLight(0xffffff, 2, 100, Math.PI / 8, 0.5, 1);
+                    headlights.position.set(2.5, 0, 0); // front of the plane
+                    headlights.target.position.set(10, 0, 0);
+                    airplaneGroup.add(headlights);
+                    airplaneGroup.add(headlights.target);
+                }
+                // Update position and direction every frame
+                headlights.position.set(2.5, 0, 0);
+                headlights.target.position.set(12, 0, 0);
+                headlights.visible = true;
+            } else if (headlights) {
+                headlights.visible = false;
+            }
+        }
+
         // Enemy airplane
         const enemyGroup = new THREE.Group();
         const enemyMaterial = new THREE.MeshPhongMaterial({
@@ -593,6 +615,9 @@
                 }
             }
 
+            // Update headlights if owned
+            updateHeadlights();
+
             // Update HUD
             document.getElementById('currency').textContent = currency;
             document.getElementById('speed').textContent = (velocity.length() * 100).toFixed(2);
@@ -774,6 +799,8 @@
                 airplaneGroup.position.set(0, 5, 15);
                 overlay.style.display = 'none';
                 inGame = true;
+                // Ensure animation loop continues
+                animate();
             };
             document.getElementById('toHomeBtn').onclick = function() {
                 // Add round earnings to currency

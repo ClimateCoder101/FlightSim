@@ -193,9 +193,18 @@
         // Flight dynamics
         let velocity = new THREE.Vector3(0, 0, 0);
         const acceleration = 0.2; // Adjusted for responsiveness
-        const maxSpeed = 1.5; // Scaled to represent 150 m/s (1.5 * 100 = 150 on HUD)
         const gravity = -0.002;
         let currency = parseInt(localStorage.getItem('currency')) || 0;
+        const ownedUpgrades = JSON.parse(localStorage.getItem('ownedUpgrades')) || [];
+
+        // Apply upgrades
+        let maxSpeed = 1.5; // Default speed
+        let armor = 1; // Default armor
+        let stealthMode = false;
+
+        if (ownedUpgrades.includes('speed')) maxSpeed += 0.5; // Increase speed
+        if (ownedUpgrades.includes('armor')) armor += 1; // Increase armor
+        if (ownedUpgrades.includes('stealth')) stealthMode = true; // Enable stealth mode
 
         // Enhanced AI behavior
         const enemyAcceleration = 0.05;
@@ -336,9 +345,14 @@
                 const bullet = enemyBullets[i];
                 bullet.position.add(bullet.userData.velocity.clone().multiplyScalar(0.1));
                 if (bullet.position.distanceTo(airplaneGroup.position) < 2) {
-                    currency = Math.max(0, currency - 10); // Deduct 10 coins for being hit
-                    localStorage.setItem('currency', currency);
-                    document.getElementById('currency').textContent = currency;
+                    if (armor > 0) {
+                        armor--; // Reduce armor instead of deducting coins
+                        alert('Armor absorbed the hit!');
+                    } else {
+                        currency = Math.max(0, currency - 10); // Deduct coins if no armor
+                        localStorage.setItem('currency', currency);
+                        document.getElementById('currency').textContent = currency;
+                    }
                     scene.remove(bullet);
                     enemyBullets.splice(i, 1);
                     continue;

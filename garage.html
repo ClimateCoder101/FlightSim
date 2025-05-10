@@ -57,6 +57,16 @@
         .owned-planes li {
             margin: 5px 0;
         }
+        .owned-upgrades {
+            margin: 20px 0;
+        }
+        .owned-upgrades ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .owned-upgrades li {
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -65,20 +75,38 @@
         <h2>Garage</h2>
         <p>Coins: <span id="coinBalance">0</span></p>
         <button onclick="selectPlane('basic')">Basic Plane (Free)</button>
-        <button onclick="selectPlane('speedy')">Speedy Plane (100 Coins)</button>
-        <button onclick="selectPlane('armored')">Armored Plane (200 Coins)</button>
+        <button onclick="selectPlane('speedy')">+50 SPEED (100 Coins)</button>
+        <button onclick="selectPlane('armored')">2x Life (200 Coins)</button>
+        <button onclick="selectPlane('stealth')">Stealth Plane (500 Coins)</button>
+        <button onclick="selectPlane('turbo')">Turbo Plane (1000 Coins)</button>
+        <button onclick="selectPlane('jet')">Jet Plane (2000 Coins)</button>
+        <button onclick="selectPlane('fighter')">Fighter Plane (5000 Coins)</button>
+        <button onclick="selectPlane('bomb')">Bomb (10000 Coins)</button>
     </div>
     <div class="owned-planes">
         <h3>Owned Planes</h3>
         <ul id="ownedPlanesList"></ul>
     </div>
+    <div class="garage">
+        <h2>Buy Upgrades</h2>
+        <button onclick="buyUpgrade('speed')">+50 SPEED (100 Coins)</button>
+        <button onclick="buyUpgrade('armor')">+1 ARMOR (200 Coins)</button>
+        <button onclick="buyUpgrade('stealth')">STEALTH MODE (500 Coins)</button>
+        <button onclick="buyUpgrade('turbo')">TURBO BOOST (1000 Coins)</button>
+    </div>
+    <div class="owned-upgrades">
+        <h3>Owned Upgrades</h3>
+        <ul id="ownedUpgradesList"></ul>
+    </div>
     <a href="/index.html">Back to Homepage</a>
     <script>
         let currency = parseInt(localStorage.getItem('currency')) || 0;
         let ownedPlanes = JSON.parse(localStorage.getItem('ownedPlanes')) || ['basic'];
+        let ownedUpgrades = JSON.parse(localStorage.getItem('ownedUpgrades')) || [];
 
         document.getElementById('coinBalance').textContent = currency;
         updateOwnedPlanesList();
+        updateOwnedUpgradesList();
 
         function selectPlane(plane) {
             if (plane === 'basic') {
@@ -106,6 +134,27 @@
             }
         }
 
+        function buyUpgrade(upgrade) {
+            const upgradeCosts = {
+                speed: 100,
+                armor: 200,
+                stealth: 500,
+                turbo: 1000
+            };
+
+            if (currency >= upgradeCosts[upgrade] && !ownedUpgrades.includes(upgrade)) {
+                alert(`${capitalize(upgrade)} upgrade purchased!`);
+                ownedUpgrades.push(upgrade);
+                currency -= upgradeCosts[upgrade];
+                updateCurrency();
+                updateOwnedUpgradesList();
+            } else if (ownedUpgrades.includes(upgrade)) {
+                alert(`You already own the ${capitalize(upgrade)} upgrade!`);
+            } else {
+                alert('Not enough coins!');
+            }
+        }
+
         function updateCurrency() {
             localStorage.setItem('currency', currency);
             document.getElementById('coinBalance').textContent = currency;
@@ -118,6 +167,17 @@
             ownedPlanes.forEach(plane => {
                 const listItem = document.createElement('li');
                 listItem.textContent = capitalize(plane) + ' Plane';
+                list.appendChild(listItem);
+            });
+        }
+
+        function updateOwnedUpgradesList() {
+            localStorage.setItem('ownedUpgrades', JSON.stringify(ownedUpgrades));
+            const list = document.getElementById('ownedUpgradesList');
+            list.innerHTML = '';
+            ownedUpgrades.forEach(upgrade => {
+                const listItem = document.createElement('li');
+                listItem.textContent = capitalize(upgrade) + ' Upgrade';
                 list.appendChild(listItem);
             });
         }

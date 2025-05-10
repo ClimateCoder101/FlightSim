@@ -17,17 +17,16 @@
             margin-top: 5%;
             color: #333;
         }
-        .currency {
-            font-size: 20px;
-            margin: 10px 0;
-            color: #333;
+        .auth-container {
+            margin-top: 20px;
         }
-        .garage {
-            margin: 20px 0;
-        }
-        .garage button {
-            display: inline-block;
+        .auth-container input {
             margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+            width: 200px;
+        }
+        .auth-container button {
             padding: 10px 20px;
             font-size: 16px;
             color: white;
@@ -36,7 +35,7 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        .garage button:hover {
+        .auth-container button:hover {
             background-color: #0056b3;
         }
         a {
@@ -56,47 +55,61 @@
 </head>
 <body>
     <h1>Welcome to FlyToday</h1>
-    <div class="currency">
-        <p>Currency: <span id="currency">0</span> Coins</p>
+    <div class="auth-container" id="auth-container">
+        <input type="text" id="username" placeholder="Enter Username">
+        <input type="password" id="password" placeholder="Enter Password">
+        <button onclick="signIn()">Sign In</button>
+        <button onclick="signUp()">Sign Up</button>
     </div>
-    <div class="garage">
-        <h2>Garage</h2>
-        <button onclick="selectPlane('basic')">Basic Plane (Free)</button>
-        <button onclick="selectPlane('speedy')">Speedy Plane (100 Coins)</button>
-        <button onclick="selectPlane('armored')">Armored Plane (200 Coins)</button>
+    <div id="main-content" style="display: none;">
+        <a href="/game.html">PLAYER VS COMPUTER</a>
+        <a href="/multiplayer.html">MULTIPLAYER</a>
+        <a href="/free.html">FREE PLAY</a>
+        <a href="/garage.html">GARAGE</a>
+        <a href="/settings.html">SETTINGS</a>
+        <a href="/tutorial.html">HOW TO PLAY</a>
+        <a href="/pro.html">PRO</a>
     </div>
-    <a href="/game.html">PLAYER VS COMPUTER</a>
-    <a href="/multiplayer.html">MULTIPLAYER</a>
-    <a href="/free.html">FREE PLAY</a>
-    <a href="/settings.html">SETTINGS</a>
-    <a href="/tutorial.html">HOW TO PLAY</a>
-    <a href="/pro.html">PRO</a>
     <script>
-        let currency = parseInt(localStorage.getItem('currency')) || 0;
-        document.getElementById('currency').textContent = currency;
+        const users = JSON.parse(localStorage.getItem('users')) || {};
 
-        function selectPlane(plane) {
-            if (plane === 'basic') {
-                alert('Basic Plane selected!');
-                localStorage.setItem('selectedPlane', 'basic');
-            } else if (plane === 'speedy' && currency >= 100) {
-                alert('Speedy Plane selected!');
-                localStorage.setItem('selectedPlane', 'speedy');
-                currency -= 100;
-                updateCurrency();
-            } else if (plane === 'armored' && currency >= 200) {
-                alert('Armored Plane selected!');
-                localStorage.setItem('selectedPlane', 'armored');
-                currency -= 200;
-                updateCurrency();
+        function signIn() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            if (users[username] && users[username] === password) {
+                alert('Sign-in successful!');
+                localStorage.setItem('currentUser', username);
+                showMainContent();
             } else {
-                alert('Not enough coins!');
+                alert('Invalid username or password!');
             }
         }
 
-        function updateCurrency() {
-            localStorage.setItem('currency', currency);
-            document.getElementById('currency').textContent = currency;
+        function signUp() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            if (username && password) {
+                if (users[username]) {
+                    alert('Username already exists!');
+                } else {
+                    users[username] = password;
+                    localStorage.setItem('users', JSON.stringify(users));
+                    alert('Sign-up successful! You can now sign in.');
+                }
+            } else {
+                alert('Please enter a valid username and password!');
+            }
+        }
+
+        function showMainContent() {
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+        }
+
+        // Auto sign-in if already logged in
+        const currentUser = localStorage.getItem('currentUser');
+        if (currentUser) {
+            showMainContent();
         }
     </script>
 </body>

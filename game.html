@@ -566,9 +566,11 @@
                             localStorage.setItem('currency', currency);
                             document.getElementById('currency').textContent = currency;
                             document.getElementById('missionText').textContent = "You were shot down! Respawning...";
+                            showDeathMessage();
                             setTimeout(() => {
                                 document.getElementById('missionText').textContent = "Destroy the enemy plane!";
-                            }, 2000);
+                                hideDeathMessage();
+                            }, 2500);
                             // Respawn player at start
                             airplaneGroup.position.set(0, 5, 15);
                             velocity.set(0, 0, 0);
@@ -636,6 +638,35 @@
             ctx.fill();
 
             // Optionally: draw waypoints or other objects
+        }
+
+        // Add death message overlay
+        function showDeathMessage() {
+            let msg = document.getElementById('deathMessage');
+            if (!msg) {
+                msg = document.createElement('div');
+                msg.id = 'deathMessage';
+                msg.style.position = 'fixed';
+                msg.style.top = '50%';
+                msg.style.left = '50%';
+                msg.style.transform = 'translate(-50%, -50%)';
+                msg.style.background = 'rgba(0,0,0,0.8)';
+                msg.style.color = '#fff';
+                msg.style.fontSize = '2rem';
+                msg.style.padding = '40px 60px';
+                msg.style.borderRadius = '16px';
+                msg.style.zIndex = 9999;
+                msg.style.textAlign = 'center';
+                msg.innerHTML = 'You have been shot down!';
+                document.body.appendChild(msg);
+            } else {
+                msg.style.display = 'block';
+            }
+        }
+
+        function hideDeathMessage() {
+            const msg = document.getElementById('deathMessage');
+            if (msg) msg.style.display = 'none';
         }
 
         // Animation loop
